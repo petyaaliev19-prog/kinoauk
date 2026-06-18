@@ -453,10 +453,9 @@ function spin() {
     state.history = state.history.slice(0, 20);
     save();
     playWinSound();
-    burstConfetti();
-    launchFireworks();
     render();
     triggerWinnerGlitch();
+    showVhsWinBurst();
   }
 
   requestAnimationFrame(frame);
@@ -632,51 +631,18 @@ function tickWheel(rotation, progress) {
   playTickSound(progress);
 }
 
-function burstConfetti() {
+function showVhsWinBurst() {
   confettiLayer.textContent = "";
-  const colors = ["#f4c542", "#31c6a7", "#f46f63", "#5aa9e6", "#e08dac", "#8bd17c"];
-
-  for (let index = 0; index < 120; index += 1) {
-    const piece = document.createElement("span");
-    piece.className = "confetti";
-    piece.style.left = `${Math.random() * 100}%`;
-    piece.style.background = colors[index % colors.length];
-    piece.style.setProperty("--x", `${(Math.random() - .5) * 520}px`);
-    piece.style.animationDelay = `${Math.random() * .28}s`;
-    confettiLayer.append(piece);
-  }
+  const burst = document.createElement("div");
+  const stamp = document.createElement("div");
+  burst.className = "static-burst";
+  stamp.className = "vhs-winner-stamp";
+  stamp.textContent = "СЕГОДНЯ В ПРОКАТЕ";
+  confettiLayer.append(burst, stamp);
 
   setTimeout(() => {
     confettiLayer.textContent = "";
-  }, 3600);
-}
-
-function launchFireworks() {
-  const colors = ["#f4c542", "#31c6a7", "#f46f63", "#5aa9e6", "#e08dac", "#8bd17c"];
-  const bursts = [
-    { x: 20, y: 22 },
-    { x: 38, y: 18 },
-    { x: 62, y: 20 },
-    { x: 80, y: 24 },
-    { x: 50, y: 38 }
-  ];
-
-  for (const burst of bursts) {
-    for (let index = 0; index < 42; index += 1) {
-      const spark = document.createElement("span");
-      const angle = (Math.PI * 2 * index) / 42;
-      const distance = 110 + Math.random() * 170;
-      spark.className = "firework";
-      spark.style.left = `${burst.x}%`;
-      spark.style.top = `${burst.y}%`;
-      spark.style.background = colors[index % colors.length];
-      spark.style.color = colors[index % colors.length];
-      spark.style.setProperty("--x", `${Math.cos(angle) * distance}px`);
-      spark.style.setProperty("--y", `${Math.sin(angle) * distance}px`);
-      spark.style.animationDelay = `${Math.random() * .2}s`;
-      confettiLayer.append(spark);
-    }
-  }
+  }, 1450);
 }
 
 addForm.addEventListener("submit", (event) => {
