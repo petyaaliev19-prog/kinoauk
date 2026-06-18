@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00ffd1"/>
+      <stop offset=".48" stop-color="#ffd640"/>
+      <stop offset="1" stop-color="#ff2d95"/>
+    </linearGradient>
+    <radialGradient id="shine" cx=".34" cy=".2" r=".62">
+      <stop offset="0" stop-color="#fff" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="120" height="180" rx="12" fill="#111315"/>
+  <rect x="6" y="6" width="108" height="168" rx="10" fill="url(#bg)"/>
+  <rect x="6" y="6" width="108" height="168" rx="10" fill="url(#shine)"/>
+  <circle cx="60" cy="70" r="28" fill="#111315" opacity=".86"/>
+  <path d="M51 54v32l28-16z" fill="#f6f2ea"/>
+  <rect x="20" y="124" width="80" height="8" rx="4" fill="#111315" opacity=".82"/>
+  <rect x="31" y="140" width="58" height="7" rx="3.5" fill="#111315" opacity=".7"/>
+  <text x="60" y="164" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="900" fill="#111315">КИНОАУК</text>
+</svg>

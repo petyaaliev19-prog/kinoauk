@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Киноаук Максима и Оли</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="poster-backdrop" id="posterBackdrop" aria-hidden="true"></div>
+    <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+    <aside class="mascot-stage" aria-hidden="true">
+      <div class="mascot-speech" id="mascotSpeech">Киномагия для Оли и Максима уже шуршит плёнкой.</div>
+      <img class="family-mascot" src="assets/mascot.png" alt="Семейный зелёный маскот">
+    </aside>
+
+    <main class="app">
+      <section class="wheel-panel" aria-label="Колесо выбора фильма">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Киноаук Максима и Оли</p>
+            <h1>Что смотрим сегодня?</h1>
+            <p class="subtitle">ТЫ ПРИЕХАЛА В ДИКТАТУРУ!!</p>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button" id="soundButton" type="button" title="Звук" aria-label="Звук">♪</button>
+            <button class="icon-button" id="resetWinnerButton" type="button" title="Сбросить победителя" aria-label="Сбросить победителя">↺</button>
+            <button class="icon-button danger-button" id="shutdownButton" type="button" title="Выключить сервер" aria-label="Выключить сервер">⏻</button>
+          </div>
+        </div>
+
+        <div class="wheel-wrap">
+          <div class="pointer" aria-hidden="true"></div>
+          <canvas id="wheelCanvas" width="760" height="760" aria-label="Колесо вариантов"></canvas>
+          <div class="wheel-center">
+            <span id="movieCount">0</span>
+            <small>вариантов</small>
+          </div>
+          <div class="empty-wheel-label" aria-hidden="true">&#1053;&#1077;&#1090; &#1092;&#1080;&#1083;&#1100;&#1084;&#1086;&#1074;</div>
+        </div>
+
+        <div class="controls">
+          <button class="primary" id="spinButton" type="button">Крутить</button>
+          <button id="removeWinnerButton" type="button">Убрать победителя</button>
+        </div>
+
+        <div class="winner" id="winnerBox" hidden>
+          <img class="winner-poster" id="winnerPoster" src="" alt="" hidden>
+          <div>
+            <p>Максим и Оля сегодня смотрят</p>
+            <a id="winnerLink" href="#" target="_blank" rel="noreferrer"></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="side-panel" aria-label="Список фильмов">
+        <div class="tabs" role="tablist" aria-label="Режимы">
+          <button class="tab active" id="listTab" type="button" role="tab" aria-selected="true">Список</button>
+          <button class="tab" id="importTab" type="button" role="tab" aria-selected="false">Импорт</button>
+        </div>
+
+        <div class="tab-panel active" id="listPanel" role="tabpanel" aria-labelledby="listTab">
+          <form class="add-form" id="addForm">
+            <input id="movieTitle" name="title" type="text" placeholder="Название фильма" autocomplete="off">
+            <input id="movieUrl" name="url" type="url" placeholder="Ссылка">
+            <button type="submit" title="Добавить" aria-label="Добавить фильм">+</button>
+          </form>
+
+          <div class="toolbar">
+            <input id="searchInput" type="search" placeholder="Найти в списке">
+            <button id="clearButton" type="button">Очистить</button>
+          </div>
+
+          <ul class="movie-list" id="movieList"></ul>
+        </div>
+
+        <div class="tab-panel" id="importPanel" role="tabpanel" aria-labelledby="importTab">
+          <div class="import-card">
+            <h2>Кинопоиск</h2>
+            <p>Обновляет колесо из публичных списков “Буду смотреть” Максима и Оли.</p>
+            <button class="primary" id="refreshKinopoiskButton" type="button">Обновить с Кинопоиска</button>
+            <p class="import-status" id="refreshKinopoiskStatus"></p>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+    <template id="movieItemTemplate">
+      <li class="movie-item">
+        <span class="movie-poster-slot">
+          <img class="movie-poster" alt="" loading="lazy">
+        </span>
+        <a class="movie-title" target="_blank" rel="noreferrer"></a>
+        <button class="remove-button" type="button" title="Удалить" aria-label="Удалить">×</button>
+      </li>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
