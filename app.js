@@ -513,6 +513,26 @@ function playTone(frequency, duration, startAt = 0, type = "sine", gainValue = .
   oscillator.stop(start + duration + .02);
 }
 
+function playPitchSlide(from, to, duration, startAt = 0, type = "sawtooth", gainValue = .04) {
+  const audio = getAudioContext();
+  if (!audio) return;
+
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  const start = audio.currentTime + startAt;
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(from, start);
+  oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, to), start + duration);
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(gainValue, start + .02);
+  gain.gain.exponentialRampToValueAtTime(.001, start + duration);
+  oscillator.connect(gain);
+  gain.connect(audio.destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + .02);
+}
+
 function playNoise(duration, startAt = 0, gainValue = .05, frequency = 900, type = "bandpass") {
   const audio = getAudioContext();
   if (!audio) return;
@@ -545,52 +565,62 @@ function playNoise(duration, startAt = 0, gainValue = .05, frequency = 900, type
 }
 
 function playTapeClick(startAt = 0) {
-  playNoise(.035, startAt, .13, 2600, "highpass");
-  playTone(92, .055, startAt, "square", .08);
-  playTone(138, .045, startAt + .04, "triangle", .045);
+  playNoise(.018, startAt, .16, 3200, "highpass");
+  playTone(72, .045, startAt, "square", .07);
+  playNoise(.026, startAt + .045, .08, 1200, "bandpass");
 }
 
 function playTapeRewind(startAt = 0) {
-  [880, 990, 1180, 1320, 990, 740].forEach((frequency, index) => {
-    playTone(frequency, .055, startAt + index * .045, "sawtooth", .032);
-  });
-  playNoise(.42, startAt, .055, 1600, "bandpass");
+  playPitchSlide(420, 1680, .34, startAt, "sawtooth", .035);
+  playPitchSlide(680, 210, .28, startAt + .18, "triangle", .026);
+  playNoise(.5, startAt, .045, 1450, "bandpass");
+  playNoise(.22, startAt + .12, .022, 4200, "highpass");
 }
 
 function playVhsGlitch(startAt = 0) {
-  playNoise(.18, startAt, .1, 4200, "highpass");
-  playTone(72, .24, startAt, "sawtooth", .09);
-  playTone(48, .32, startAt + .12, "square", .045);
+  playNoise(.13, startAt, .11, 3600, "highpass");
+  playPitchSlide(96, 42, .24, startAt, "sawtooth", .065);
+  playNoise(.06, startAt + .16, .075, 900, "bandpass");
+}
+
+function playTapeHiss(duration, startAt = 0, gainValue = .022) {
+  playNoise(duration, startAt, gainValue, 1800, "bandpass");
+  playNoise(duration * .86, startAt + .03, gainValue * .55, 5200, "highpass");
+}
+
+function playButtonClack(startAt = 0) {
+  playNoise(.012, startAt, .11, 2800, "highpass");
+  playTone(118, .035, startAt + .006, "square", .045);
+}
+
+function playCapstanThump(startAt = 0) {
+  playTone(46, .18, startAt, "sine", .07);
+  playNoise(.045, startAt + .025, .04, 760, "bandpass");
 }
 
 function playStartSound() {
   playTapeClick(0);
-  playTapeRewind(.08);
-  [330, 392, 494, 587, 740, 880, 988, 1175].forEach((frequency, index) => {
-    playTone(frequency, .07, .24 + index * .045, index % 2 ? "sawtooth" : "square", .026 + index * .003);
-  });
-  [82, 98].forEach((frequency, index) => {
-    playTone(frequency, .18, .2 + index * .18, "sine", .055);
-  });
+  playButtonClack(.09);
+  playTapeRewind(.14);
+  playTapeHiss(.82, .06, .019);
+  playCapstanThump(.38);
 }
 
 function playWinSound() {
   playVhsGlitch(0);
-  playTapeClick(.22);
-  playTone(62, .42, .04, "sine", .12);
-  [523, 659, 784, 1046, 1318, 1568].forEach((frequency, index) => {
-    playTone(frequency, .16, .24 + index * .055, index % 2 ? "triangle" : "sawtooth", .055);
-  });
-  [262, 330, 392, 523].forEach((frequency) => {
-    playTone(frequency, .48, .52, "sine", .04);
-  });
+  playTapeClick(.2);
+  playCapstanThump(.26);
+  playTapeHiss(.62, .18, .018);
+  playPitchSlide(120, 74, .34, .28, "triangle", .038);
+  playNoise(.08, .58, .055, 2600, "bandpass");
 }
 
 function playTickSound(progress) {
-  const frequency = 760 + Math.floor(progress * 640);
-  playTone(frequency, .025, 0, "square", .018);
-  if (Math.random() > .72) playNoise(.022, 0, .018, 2600, "highpass");
-  if (progress > .82) playTone(1800, .018, .012, "triangle", .012);
+  const slow = Math.max(0, progress - .68);
+  const thump = .018 + slow * .04;
+  playNoise(.012, 0, .035 + slow * .035, 1800, "bandpass");
+  playTone(92 - slow * 28, .024 + slow * .035, .004, "square", thump);
+  if (Math.random() > .58) playTapeHiss(.03, .012, .008);
 }
 
 function tickWheel(rotation, progress) {
@@ -690,7 +720,7 @@ resetWinnerButton.addEventListener("click", () => {
 soundButton.addEventListener("click", () => {
   soundEnabled = !soundEnabled;
   localStorage.setItem("kinoauk.sound.v1", JSON.stringify(soundEnabled));
-  if (soundEnabled) playTone(660, .12, 0, "sine", .05);
+  if (soundEnabled) playButtonClack();
   render();
 });
 
