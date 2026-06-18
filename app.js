@@ -135,8 +135,10 @@ function normalizeMovie(input) {
   const title = String(input.title || input.name || input.ruTitle || input.originalTitle || "").trim();
   const url = String(input.url || input.link || input.href || "").trim();
   const poster = String(input.poster || input.image || input.cover || FALLBACK_POSTER).trim();
+  const year = String(input.year || "").trim();
+  const genre = String(input.genre || input.genres || "").trim().toLowerCase();
   if (!title) return null;
-  return { title, url, poster };
+  return { title, url, poster, year, genre };
 }
 
 function mergeMovies(nextMovies) {
@@ -148,12 +150,16 @@ function mergeMovies(nextMovies) {
     const normalized = normalizeMovie(movie);
     if (!normalized) continue;
     const key = normalized.url || normalized.title.toLowerCase();
-    byKey.set(key, normalized);
+    byKey.set(key, { ...normalized, ...byKey.get(key), ...removeEmptyFields(normalized) });
   }
 
   state.movies = [...byKey.values()].sort((a, b) => a.title.localeCompare(b.title, "ru"));
   save();
   render();
+}
+
+function removeEmptyFields(movie) {
+  return Object.fromEntries(Object.entries(movie).filter(([, value]) => value !== ""));
 }
 
 function cleanupTitle(value) {
@@ -231,34 +237,39 @@ function renderPosterBackdrop() {
   });
 }
 
-function sayMascot(kind, movieTitle = "") {
-  const lines = getMascotLines(kind, movieTitle);
+function sayMascot(kind, movie = "") {
+  const movieTitle = typeof movie === "object" ? movie.title : movie;
+  const lines = getMascotLines(kind, movie);
   const line = lines[Math.floor(Math.random() * lines.length)];
   mascotSpeech.textContent = movieTitle ? `${line} ${movieTitle}.` : line;
 }
 
-function getMascotLines(kind, movieTitle = "") {
+function getMascotLines(kind, movie = "") {
+  const movieTitle = typeof movie === "object" ? movie.title : movie;
   if (kind !== "win" || !movieTitle) return mascotLines[kind] || mascotLines.idle;
 
   const title = movieTitle.toLowerCase();
+  const genre = typeof movie === "object" ? String(movie.genre || "").toLowerCase() : "";
+  const signal = `${title} ${genre}`;
   const custom = [];
-  if (/(ужас|пила|смерт|дьявол|прокля|псих|монстр|зомби|ад|ночь)/i.test(title)) {
-    custom.push("Хоррор на вечер. Оля и Максим, плед официально становится бронёй.");
-    custom.push("Если кто-то вскрикнет, я записываю это как режиссёрский комментарий.");
+  if (isHorrorMovie(movie)) {
+    custom.push("Хоррор на вечер. Оля и Максим, плед официально становится бронёй, свет не выключаем.");
+    custom.push("Ужасы в деке. Если кто-то вскрикнет, это попадёт в режиссёрскую версию.");
+    custom.push("Сегодня плёнка пахнет тревогой. Попкорн держать крепко, подушку не осуждаю.");
   }
-  if (/(любов|роман|красот|амели|рассвет|закат|свадь|дневник)/i.test(title)) {
+  if (/(любов|роман|красот|амели|рассвет|закат|свадь|дневник|мелодрам)/i.test(signal)) {
     custom.push("Романтическая линия обнаружена. Попкорн держим нежно.");
     custom.push("Сегодня у нас кино с шансом на уютный взгляд поверх пледа.");
   }
-  if (/(войн|бой|уби|гангстер|кримин|псы|драйв|ярост|оруж|полиц)/i.test(title)) {
+  if (/(войн|бой|уби|гангстер|кримин|псы|драйв|ярост|оруж|полиц|боевик|триллер)/i.test(signal)) {
     custom.push("Экшен-плёнка пошла. Максим делает серьёзное лицо, Оля оценивает вайб.");
     custom.push("Если будет погоня, я официально моргаю как аварийка.");
   }
-  if (/(космос|планет|матриц|будущ|робот|чуж|галак|фантаст)/i.test(title)) {
+  if (/(космос|планет|матриц|будущ|робот|чуж|галак|фантаст)/i.test(signal)) {
     custom.push("Фантастика в деке. Мой зелёный корпус одобряет технологический шум.");
     custom.push("Будущее выбрало вас. Оно немного зернистое, зато на VHS.");
   }
-  if (/(мульт|анимац|семейн|ребен|кот|панда|кролик)/i.test(title)) {
+  if (/(мульт|анимац|семейн|ребен|кот|панда|кролик)/i.test(signal)) {
     custom.push("Мульт-режим активирован. Это не инфантильность, это стратегический уют.");
     custom.push("Сегодня можно смеяться без объяснения кинокритикам.");
   }
@@ -287,7 +298,15 @@ function renderList() {
     const posterSlot = item.querySelector(".movie-poster-slot");
     const remove = item.querySelector(".remove-button");
 
-    link.textContent = movie.title;
+    link.textContent = "";
+    const title = document.createElement("span");
+    const meta = document.createElement("span");
+    title.className = "movie-title-main";
+    meta.className = "movie-meta";
+    title.textContent = movie.title;
+    meta.textContent = movieMetaLabel(movie);
+    link.append(title);
+    if (meta.textContent) link.append(meta);
     link.href = movie.url || "#";
     poster.hidden = false;
     poster.src = movie.poster || FALLBACK_POSTER;
@@ -319,7 +338,7 @@ function updateWinner() {
   if (!state.winner) {
     winnerBox.hidden = false;
     winnerBox.classList.add("waiting");
-    winnerBox.classList.remove("has-winner", "has-winner-poster");
+    winnerBox.classList.remove("has-winner", "has-winner-poster", "horror-winner", "vhs-reveal", "horror-reveal");
     winnerBox.querySelector("p").textContent = "";
     winnerPoster.hidden = true;
     winnerPoster.src = "";
@@ -334,7 +353,10 @@ function updateWinner() {
   winnerBox.classList.remove("waiting");
   winnerBox.classList.add("has-winner");
   winnerBox.classList.toggle("has-winner-poster", Boolean(state.winner.poster));
-  winnerBox.querySelector("p").textContent = "Максим и Оля сегодня смотрят";
+  winnerBox.classList.toggle("horror-winner", isHorrorMovie(state.winner));
+  winnerBox.querySelector("p").textContent = ["Максим и Оля сегодня смотрят", movieMetaLabel(state.winner)]
+    .filter(Boolean)
+    .join(" · ");
   winnerLink.textContent = state.winner.title;
   winnerLink.href = state.winner.url || "#";
   if (state.winner.url) {
@@ -448,28 +470,29 @@ function spin() {
     state.spinning = false;
     state.rotation = end % (Math.PI * 2);
     state.winner = movieAtPointer(state.rotation);
-    sayMascot("win", state.winner.title);
+    sayMascot("win", state.winner);
     state.history.unshift({ ...state.winner, wonAt: new Date().toISOString() });
     state.history = state.history.slice(0, 20);
     save();
     playWinSound();
     render();
-    triggerWinnerGlitch();
-    showVhsWinBurst();
+    triggerWinnerGlitch(state.winner);
+    showVhsWinBurst(state.winner);
   }
 
   requestAnimationFrame(frame);
 }
 
-function triggerWinnerGlitch() {
-  winnerBox.classList.remove("vhs-reveal");
+function triggerWinnerGlitch(movie = null) {
+  winnerBox.classList.remove("vhs-reveal", "horror-reveal");
   void winnerBox.offsetWidth;
-  winnerBox.classList.add("vhs-reveal");
+  winnerBox.classList.add(isHorrorMovie(movie) ? "horror-reveal" : "vhs-reveal");
   document.body.classList.add("vhs-glitching");
+  document.body.classList.toggle("horror-glitching", isHorrorMovie(movie));
 
   setTimeout(() => {
-    winnerBox.classList.remove("vhs-reveal");
-    document.body.classList.remove("vhs-glitching");
+    winnerBox.classList.remove("vhs-reveal", "horror-reveal");
+    document.body.classList.remove("vhs-glitching", "horror-glitching");
   }, 1150);
 }
 
@@ -631,18 +654,29 @@ function tickWheel(rotation, progress) {
   playTickSound(progress);
 }
 
-function showVhsWinBurst() {
+function showVhsWinBurst(movie = null) {
   confettiLayer.textContent = "";
   const burst = document.createElement("div");
   const stamp = document.createElement("div");
-  burst.className = "static-burst";
-  stamp.className = "vhs-winner-stamp";
-  stamp.textContent = "СЕГОДНЯ В ПРОКАТЕ";
+  const horror = isHorrorMovie(movie);
+  burst.className = horror ? "static-burst horror-static-burst" : "static-burst";
+  stamp.className = horror ? "vhs-winner-stamp horror-stamp" : "vhs-winner-stamp";
+  stamp.textContent = horror ? "НОЧНОЙ СЕАНС" : "СЕГОДНЯ В ПРОКАТЕ";
   confettiLayer.append(burst, stamp);
 
   setTimeout(() => {
     confettiLayer.textContent = "";
   }, 1450);
+}
+
+function movieMetaLabel(movie) {
+  return [movie?.year, movie?.genre].filter(Boolean).join(" · ");
+}
+
+function isHorrorMovie(movie) {
+  if (!movie) return false;
+  const signal = `${movie.title || ""} ${movie.genre || ""}`.toLowerCase();
+  return /(ужас|хоррор|пила|смерт|дьявол|прокля|псих|монстр|зомби|кошмар|ад|ночь|вампир|одержим)/i.test(signal);
 }
 
 addForm.addEventListener("submit", (event) => {

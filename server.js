@@ -166,9 +166,12 @@ function parseKinopoiskHtml(html) {
     const href = decodeHtml(match[2]).split("?")[0];
     const attrs = match[1];
     const body = match[3];
+    const captionText = stripTags(body);
+    const altText = readAttr(body, "alt");
+    const meta = parseMovieMeta(captionText) || parseMovieMeta(altText);
     const poster = absoluteUrl(readAttr(body, "src"));
-    const title = cleanTitle(stripTags(body))
-      || cleanTitle(readAttr(body, "alt"))
+    const title = cleanTitle(captionText)
+      || cleanTitle(altText)
       || cleanTitle(readAttr(attrs, "aria-label"))
       || cleanTitle(readAttr(attrs, "title"));
     if (!title) continue;
@@ -178,7 +181,9 @@ function parseKinopoiskHtml(html) {
     movies.set(movieUrl, {
       title: current?.title || title,
       url: movieUrl,
-      poster: current?.poster || poster
+      poster: current?.poster || poster,
+      year: current?.year || meta?.year || "",
+      genre: current?.genre || meta?.genre || ""
     });
   }
 
@@ -203,6 +208,17 @@ function cleanTitle(value) {
     .replace(/\.\s*\d{4},.*$/u, "")
     .replace(/\b\d{4},.*$/u, "")
     .trim();
+}
+
+function parseMovieMeta(value) {
+  const text = stripTags(value).replace(/\s+/g, " ").trim();
+  const match = /(?:^|[\s.])((?:19|20)\d{2})(?:\s*[-–—]\s*(?:(?:19|20)\d{2})?)?\s*,\s*([^.,<]+)/u.exec(text);
+  if (!match) return null;
+
+  return {
+    year: match[1],
+    genre: match[2].trim().toLowerCase()
+  };
 }
 
 function absoluteUrl(value) {

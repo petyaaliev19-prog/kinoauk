@@ -629,6 +629,23 @@ canvas {
   white-space: nowrap;
 }
 
+.movie-title-main,
+.movie-meta {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movie-meta {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .remove-button {
   min-height: 34px;
   width: 34px;
@@ -721,6 +738,22 @@ canvas {
   animation: vhs-stamp-hit 1.35s cubic-bezier(.18, 1.1, .3, 1) forwards;
 }
 
+.horror-static-burst {
+  background:
+    repeating-radial-gradient(circle at 45% 48%, rgba(255, 255, 255, .86) 0 1px, rgba(26, 0, 0, .96) 1px 3px, transparent 3px 5px),
+    repeating-linear-gradient(0deg, rgba(255, 92, 73, .48) 0 2px, rgba(0, 0, 0, .6) 2px 7px, transparent 7px 10px);
+  mix-blend-mode: lighten;
+  animation-duration: 1.22s;
+}
+
+.horror-stamp {
+  border-color: #ff2f2f;
+  color: #ff2f2f;
+  background: rgba(10, 0, 0, .82);
+  text-shadow: 0 0 12px rgba(255, 47, 47, .72);
+  box-shadow: 0 0 0 2px rgba(255, 243, 215, .1), 0 0 40px rgba(255, 0, 0, .34);
+}
+
 /* Home VHS theme */
 :root {
   --bg: #120f0d;
@@ -768,6 +801,13 @@ body.vhs-glitching::before {
     -2px 0 rgba(84, 224, 189, .72),
     0 0 12px rgba(255, 231, 93, .65);
   animation: osd-glitch .18s steps(2, end) 6;
+}
+
+body.horror-glitching::after {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .3) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 50% 52%, rgba(255, 0, 0, .2), transparent 46%),
+    radial-gradient(circle at 50% 50%, transparent 42%, rgba(0, 0, 0, .62));
 }
 
 body::after {
@@ -1118,20 +1158,59 @@ body.dictatorship-active .primary:disabled {
   border-color: rgba(255, 243, 215, .82);
 }
 
+.winner.has-winner.horror-winner {
+  border-color: rgba(255, 47, 47, .68);
+  border-left-color: #ff2f2f;
+  background:
+    linear-gradient(90deg, rgba(255, 47, 47, .22), rgba(34, 0, 0, .28) 72%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .02) 0 1px, transparent 1px 5px),
+    #120909;
+  box-shadow: 0 0 38px rgba(255, 0, 0, .15), inset 0 0 34px rgba(255, 0, 0, .08);
+}
+
+.winner.has-winner.horror-winner::after {
+  content: "HORROR TAPE";
+  color: rgba(255, 92, 73, .62);
+  text-shadow: 0 0 12px rgba(255, 0, 0, .36);
+}
+
+.winner.has-winner.horror-winner p {
+  color: rgba(255, 166, 150, .86);
+}
+
+.winner.has-winner.horror-winner .winner-poster {
+  border-color: rgba(255, 92, 73, .9);
+  filter: contrast(1.18) saturate(.82) brightness(.9);
+}
+
 .winner.has-winner.vhs-reveal {
   animation: winner-vhs-reveal 1.05s steps(3, end);
+}
+
+.winner.has-winner.horror-reveal {
+  animation: horror-vhs-reveal 1.15s steps(4, end);
 }
 
 .winner.has-winner.vhs-reveal::before {
   animation: tape-tracking .82s steps(4, end);
 }
 
+.winner.has-winner.horror-reveal::before {
+  animation: horror-tape-tracking 1.05s steps(5, end);
+}
+
 .winner.has-winner.vhs-reveal::after {
   animation: osd-glitch .18s steps(2, end) 6;
 }
 
+.winner.has-winner.horror-reveal::after {
+  animation: osd-glitch .12s steps(2, end) 9;
+}
+
 .winner.has-winner.vhs-reveal > div,
-.winner.has-winner.vhs-reveal .winner-poster {
+.winner.has-winner.vhs-reveal .winner-poster,
+.winner.has-winner.horror-reveal > div,
+.winner.has-winner.horror-reveal .winner-poster {
   animation: text-vhs-jump .9s steps(2, end);
 }
 
@@ -1261,6 +1340,64 @@ body.dictatorship-active .primary:disabled {
     opacity: 1;
     filter: none;
     transform: none;
+  }
+}
+
+@keyframes horror-vhs-reveal {
+  0% {
+    opacity: 0;
+    filter: brightness(.25) contrast(2.4) saturate(.4);
+    transform: translateX(22px) skewX(9deg) scale(.98);
+  }
+
+  10% {
+    opacity: 1;
+    filter: brightness(1.9) contrast(2.8) saturate(.1);
+    transform: translateX(-18px) skewX(-10deg) scale(1.02);
+  }
+
+  22% {
+    filter: brightness(.35) contrast(3) saturate(1.8) hue-rotate(-18deg);
+    transform: translateX(10px) translateY(4px);
+  }
+
+  36% {
+    filter: brightness(1.25) contrast(1.8) saturate(.75);
+    transform: translateX(-6px) translateY(-3px) skewX(4deg);
+  }
+
+  52% {
+    filter: brightness(.72) contrast(2.1) saturate(1.4);
+    transform: translateX(4px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+@keyframes horror-tape-tracking {
+  0%,
+  100% {
+    clip-path: inset(0);
+  }
+
+  16% {
+    clip-path: inset(0 0 62% 0);
+  }
+
+  34% {
+    clip-path: inset(44% 0 10% 0);
+  }
+
+  58% {
+    clip-path: inset(12% 0 34% 0);
+  }
+
+  74% {
+    clip-path: inset(68% 0 2% 0);
   }
 }
 
