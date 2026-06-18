@@ -35,6 +35,19 @@ test("app uses genre premiere effects and real scream fallback path", () => {
   assert.match(app, /playSyntheticScream/);
 });
 
+test("horror premiere uses cassette horror naming and splatter effects", () => {
+  const app = fs.readFileSync("app.js", "utf8");
+  const css = fs.readFileSync("styles.css", "utf8");
+  const docs = fs.readFileSync("docs/AI_CONTEXT.md", "utf8");
+
+  assert.match(app, /КАССЕТА УЖАСА/);
+  assert.doesNotMatch(app, /НОЧНОЙ СЕАНС/);
+  assert.match(css, /\.blood-drip/);
+  assert.match(css, /\.blood-splash/);
+  assert.doesNotMatch(css, /\.blood-drop/);
+  assert.match(docs, /КАССЕТА УЖАСА/);
+});
+
 test("sound asset documentation records source and license", () => {
   const docs = fs.readFileSync("assets/sounds/README.md", "utf8");
   assert.match(docs, /Loud Female Scream/);
