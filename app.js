@@ -25,6 +25,13 @@ const FALLBACK_POSTER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 `)}`;
 
 const palette = ["#f4c542", "#31c6a7", "#f46f63", "#5aa9e6", "#e08dac", "#8bd17c", "#f39b4a", "#b9a7ff"];
+const {
+  isHorrorMovie,
+  mergeMovieList,
+  mod,
+  movieAtPointerFromRotation,
+  movieMetaLabel
+} = window.KinoaukCore;
 
 const state = {
   movies: loadJson(STORAGE_KEY, []),
@@ -125,41 +132,11 @@ function save() {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
 }
 
-function normalizeMovie(input) {
-  if (typeof input === "string") {
-    const trimmed = input.trim();
-    if (!trimmed) return null;
-    return { title: trimmed, url: "" };
-  }
-
-  const title = String(input.title || input.name || input.ruTitle || input.originalTitle || "").trim();
-  const url = String(input.url || input.link || input.href || "").trim();
-  const poster = String(input.poster || input.image || input.cover || FALLBACK_POSTER).trim();
-  const year = String(input.year || "").trim();
-  const genre = String(input.genre || input.genres || "").trim().toLowerCase();
-  if (!title) return null;
-  return { title, url, poster, year, genre };
-}
-
 function mergeMovies(nextMovies) {
   if (state.spinning) return;
-
-  const byKey = new Map(state.movies.map((movie) => [movie.url || movie.title.toLowerCase(), movie]));
-
-  for (const movie of nextMovies) {
-    const normalized = normalizeMovie(movie);
-    if (!normalized) continue;
-    const key = normalized.url || normalized.title.toLowerCase();
-    byKey.set(key, { ...normalized, ...byKey.get(key), ...removeEmptyFields(normalized) });
-  }
-
-  state.movies = [...byKey.values()].sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  state.movies = mergeMovieList(state.movies, nextMovies, { fallbackPoster: FALLBACK_POSTER });
   save();
   render();
-}
-
-function removeEmptyFields(movie) {
-  return Object.fromEntries(Object.entries(movie).filter(([, value]) => value !== ""));
 }
 
 function cleanupTitle(value) {
@@ -497,16 +474,7 @@ function triggerWinnerGlitch(movie = null) {
 }
 
 function movieAtPointer(rotation) {
-  if (!state.movies.length) return null;
-
-  const slice = (Math.PI * 2) / state.movies.length;
-  const normalized = mod(-rotation, Math.PI * 2);
-  const index = Math.floor(normalized / slice) % state.movies.length;
-  return state.movies[index];
-}
-
-function mod(value, max) {
-  return ((value % max) + max) % max;
+  return movieAtPointerFromRotation(state.movies, rotation);
 }
 
 function getAudioContext() {
@@ -667,16 +635,6 @@ function showVhsWinBurst(movie = null) {
   setTimeout(() => {
     confettiLayer.textContent = "";
   }, 1450);
-}
-
-function movieMetaLabel(movie) {
-  return [movie?.year, movie?.genre].filter(Boolean).join(" · ");
-}
-
-function isHorrorMovie(movie) {
-  if (!movie) return false;
-  const signal = `${movie.title || ""} ${movie.genre || ""}`.toLowerCase();
-  return /(ужас|хоррор|пила|смерт|дьявол|прокля|псих|монстр|зомби|кошмар|ад|ночь|вампир|одержим)/i.test(signal);
 }
 
 addForm.addEventListener("submit", (event) => {
