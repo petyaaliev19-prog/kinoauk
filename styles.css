@@ -964,6 +964,39 @@ body.dictatorship-active .primary:disabled {
   right: 14px;
 }
 
+.winner::before {
+  z-index: 0;
+  inset: 14px 18px;
+  background:
+    radial-gradient(circle at calc(100% - 112px) 50%, #12100c 0 18px, rgba(255, 243, 215, .34) 19px 22px, transparent 23px),
+    radial-gradient(circle at calc(100% - 48px) 50%, #12100c 0 18px, rgba(255, 243, 215, .34) 19px 22px, transparent 23px),
+    linear-gradient(90deg, transparent 0 calc(100% - 224px), rgba(255, 243, 215, .12) calc(100% - 224px) calc(100% - 18px), transparent calc(100% - 18px));
+}
+
+.winner::after {
+  z-index: 2;
+}
+
+.winner > div {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  padding-right: 238px;
+}
+
+.winner:not(.has-winner-poster) > div {
+  padding: 8px 238px 8px 0;
+}
+
+.winner.has-winner-poster div {
+  padding: 14px 238px 14px 16px;
+}
+
+.winner.has-winner-poster div::before,
+.winner.has-winner-poster div::after {
+  display: none;
+}
+
 @keyframes vhs-warning-flicker {
   0%,
   100% {
@@ -996,6 +1029,19 @@ body.dictatorship-active .primary:disabled {
 
   .winner {
     grid-template-columns: 96px 1fr;
+  }
+
+  .winner > div,
+  .winner:not(.has-winner-poster) > div,
+  .winner.has-winner-poster div {
+    padding-right: 150px;
+  }
+
+  .winner::before {
+    background:
+      radial-gradient(circle at calc(100% - 78px) 50%, #12100c 0 14px, rgba(255, 243, 215, .34) 15px 17px, transparent 18px),
+      radial-gradient(circle at calc(100% - 34px) 50%, #12100c 0 14px, rgba(255, 243, 215, .34) 15px 17px, transparent 18px),
+      linear-gradient(90deg, transparent 0 calc(100% - 154px), rgba(255, 243, 215, .12) calc(100% - 154px) calc(100% - 12px), transparent calc(100% - 12px));
   }
 
   .mascot-stage {
