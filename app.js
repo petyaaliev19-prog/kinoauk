@@ -304,8 +304,9 @@ function renderList() {
 function updateWinner() {
   if (!state.winner) {
     winnerBox.hidden = false;
-    winnerBox.classList.remove("has-winner-poster");
-    winnerBox.querySelector("p").textContent = "Киноаук Максима и Оли";
+    winnerBox.classList.add("waiting");
+    winnerBox.classList.remove("has-winner", "has-winner-poster");
+    winnerBox.querySelector("p").textContent = "";
     winnerPoster.hidden = true;
     winnerPoster.src = "";
     winnerPoster.alt = "";
@@ -316,11 +317,17 @@ function updateWinner() {
   }
 
   winnerBox.hidden = false;
+  winnerBox.classList.remove("waiting");
+  winnerBox.classList.add("has-winner");
   winnerBox.classList.toggle("has-winner-poster", Boolean(state.winner.poster));
   winnerBox.querySelector("p").textContent = "Максим и Оля сегодня смотрят";
   winnerLink.textContent = state.winner.title;
   winnerLink.href = state.winner.url || "#";
-  winnerLink.target = "_blank";
+  if (state.winner.url) {
+    winnerLink.target = "_blank";
+  } else {
+    winnerLink.removeAttribute("target");
+  }
   winnerPoster.hidden = !state.winner.poster;
   winnerPoster.src = state.winner.poster || "";
   winnerPoster.alt = state.winner.title;

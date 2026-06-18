@@ -997,6 +997,98 @@ body.dictatorship-active .primary:disabled {
   display: none;
 }
 
+.winner.waiting {
+  display: block;
+  min-height: 116px;
+  padding: 22px 24px;
+  border: 1px solid rgba(255, 184, 74, .42);
+  border-left: 6px solid var(--accent);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 184, 74, .16), transparent 34%),
+    radial-gradient(circle at 82% 70%, rgba(84, 224, 189, .12), transparent 32%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 5px),
+    rgba(21, 19, 15, .82);
+}
+
+.winner.waiting::before,
+.winner.waiting::after {
+  display: none;
+}
+
+.winner.waiting p {
+  display: none;
+}
+
+.winner.waiting > div {
+  padding: 0;
+}
+
+.winner.waiting a {
+  width: min(760px, 100%);
+  font-size: clamp(28px, 3.7vw, 48px);
+  line-height: 1.04;
+  pointer-events: none;
+  text-shadow: 0 0 16px rgba(255, 184, 74, .18);
+}
+
+.winner.has-winner {
+  grid-template-columns: 116px minmax(0, 1fr);
+  min-height: 154px;
+  padding: 18px 24px 18px 18px;
+  border: 1px solid rgba(255, 184, 74, .64);
+  border-left: 6px solid #ffe75d;
+  background:
+    linear-gradient(90deg, rgba(255, 184, 74, .25), rgba(255, 111, 157, .12) 72%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .026) 0 1px, transparent 1px 5px),
+    #17130f;
+}
+
+.winner.has-winner::before {
+  z-index: 0;
+  inset: 14px 18px;
+  border: 2px solid rgba(255, 243, 215, .24);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at calc(100% - 112px) 50%, #12100c 0 18px, rgba(255, 243, 215, .34) 19px 22px, transparent 23px),
+    radial-gradient(circle at calc(100% - 48px) 50%, #12100c 0 18px, rgba(255, 243, 215, .34) 19px 22px, transparent 23px),
+    linear-gradient(90deg, transparent 0 calc(100% - 224px), rgba(255, 243, 215, .12) calc(100% - 224px) calc(100% - 18px), transparent calc(100% - 18px));
+}
+
+.winner.has-winner::after {
+  display: block;
+  z-index: 2;
+  content: "MAX + OLYA VHS";
+}
+
+.winner.has-winner > div,
+.winner.has-winner.has-winner-poster div {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  padding: 8px 238px 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.winner.has-winner p {
+  margin-bottom: 8px;
+  color: rgba(255, 243, 215, .78);
+}
+
+.winner.has-winner a {
+  font-size: clamp(22px, 2.6vw, 34px);
+  line-height: 1.05;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, .28);
+}
+
+.winner.has-winner .winner-poster {
+  width: 108px;
+  align-self: stretch;
+  max-height: 132px;
+  border-color: rgba(255, 243, 215, .82);
+}
+
 @keyframes vhs-warning-flicker {
   0%,
   100% {
