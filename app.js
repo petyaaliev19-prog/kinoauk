@@ -54,6 +54,7 @@ const refreshKinopoiskButton = document.querySelector("#refreshKinopoiskButton")
 const refreshKinopoiskStatus = document.querySelector("#refreshKinopoiskStatus");
 const soundButton = document.querySelector("#soundButton");
 const shutdownButton = document.querySelector("#shutdownButton");
+const dictatorshipBanner = document.querySelector("#dictatorshipBanner");
 const confettiLayer = document.querySelector("#confettiLayer");
 const mascotSpeech = document.querySelector("#mascotSpeech");
 const posterBackdrop = document.querySelector("#posterBackdrop");
@@ -70,16 +71,26 @@ const mascotLines = {
     "Если выпадет драма, делаем вид, что так и планировали."
   ],
   spin: [
-    "Тсс, сейчас монтаж судьбы...",
-    "Крупный план на интригу!",
+    "Кассета зашла в деку. Дальше решает магнитная лента.",
+    "Крупный план на интригу! Демократия вышла за снеками.",
     "Оля, Максим, ставки сделаны. Попкорн держать крепко.",
-    "Колесо крутится, критики нервничают."
+    "Колесо крутится, критики нервничают, диктатура улыбается."
   ],
   win: [
     "Премьера назначена! Оля и Максим, занимайте лучшие места.",
     "Фильм выбран. Спорить с зелёным продюсером бессмысленно.",
     "Оракул монтажа сказал: сегодня смотрим это.",
     "Вот он, главный герой вечера. Попкорн в кадр!"
+  ],
+  empty: [
+    "Кассета пустая. Нужны фильмы, иначе я начну предсказывать рекламу.",
+    "Список голый, как титры без фильма. Добавьте кино.",
+    "У меня светится пузо, но без фильмов даже оно не поможет."
+  ],
+  locked: [
+    "Всё, Оля и Максим, плёнка пошла. Суд не принимает апелляции.",
+    "Режим диктатуры включён. Руки убрали от кнопок.",
+    "Протокол VHS-тайны активирован. Перекрут запрещён морально."
   ],
   reset: [
     "Победителя спрятали в архив. Я ничего не видел.",
@@ -173,12 +184,24 @@ function filteredMovies() {
 function render() {
   movieCount.textContent = state.movies.length;
   wheelWrap.classList.toggle("is-empty", state.movies.length === 0);
+  document.body.classList.toggle("dictatorship-active", state.spinning);
+  dictatorshipBanner.textContent = state.spinning
+    ? "РЕЗУЛЬТАТ ЗАПЕЧАТАН НА VHS. ПЕРЕГОЛОСОВКИ НЕТ."
+    : "Результат ещё можно обсуждать. Пока.";
   renderList();
   renderPosterBackdrop();
   drawWheel();
   updateWinner();
   spinButton.disabled = state.movies.length < 2 || state.spinning;
+  spinButton.textContent = state.spinning ? "Диктатура крутит..." : "Крутить";
   removeWinnerButton.disabled = !state.winner || state.spinning;
+  resetWinnerButton.disabled = state.spinning;
+  clearButton.disabled = state.spinning;
+  searchInput.disabled = state.spinning;
+  refreshKinopoiskButton.disabled = state.spinning;
+  addForm.querySelectorAll("input, button").forEach((control) => {
+    control.disabled = state.spinning;
+  });
   soundButton.classList.toggle("sound-on", soundEnabled);
 }
 
@@ -195,9 +218,38 @@ function renderPosterBackdrop() {
 }
 
 function sayMascot(kind, movieTitle = "") {
-  const lines = mascotLines[kind] || mascotLines.idle;
+  const lines = getMascotLines(kind, movieTitle);
   const line = lines[Math.floor(Math.random() * lines.length)];
   mascotSpeech.textContent = movieTitle ? `${line} ${movieTitle}.` : line;
+}
+
+function getMascotLines(kind, movieTitle = "") {
+  if (kind !== "win" || !movieTitle) return mascotLines[kind] || mascotLines.idle;
+
+  const title = movieTitle.toLowerCase();
+  const custom = [];
+  if (/(ужас|пила|смерт|дьявол|прокля|псих|монстр|зомби|ад|ночь)/i.test(title)) {
+    custom.push("Хоррор на вечер. Оля и Максим, плед официально становится бронёй.");
+    custom.push("Если кто-то вскрикнет, я записываю это как режиссёрский комментарий.");
+  }
+  if (/(любов|роман|красот|амели|рассвет|закат|свадь|дневник)/i.test(title)) {
+    custom.push("Романтическая линия обнаружена. Попкорн держим нежно.");
+    custom.push("Сегодня у нас кино с шансом на уютный взгляд поверх пледа.");
+  }
+  if (/(войн|бой|уби|гангстер|кримин|псы|драйв|ярост|оруж|полиц)/i.test(title)) {
+    custom.push("Экшен-плёнка пошла. Максим делает серьёзное лицо, Оля оценивает вайб.");
+    custom.push("Если будет погоня, я официально моргаю как аварийка.");
+  }
+  if (/(космос|планет|матриц|будущ|робот|чуж|галак|фантаст)/i.test(title)) {
+    custom.push("Фантастика в деке. Мой зелёный корпус одобряет технологический шум.");
+    custom.push("Будущее выбрало вас. Оно немного зернистое, зато на VHS.");
+  }
+  if (/(мульт|анимац|семейн|ребен|кот|панда|кролик)/i.test(title)) {
+    custom.push("Мульт-режим активирован. Это не инфантильность, это стратегический уют.");
+    custom.push("Сегодня можно смеяться без объяснения кинокритикам.");
+  }
+
+  return custom.length ? custom : mascotLines.win;
 }
 
 function renderList() {
@@ -336,12 +388,17 @@ function truncate(value, max) {
 }
 
 function spin() {
-  if (state.spinning || state.movies.length < 2) return;
+  if (state.spinning) return;
+  if (state.movies.length < 2) {
+    sayMascot("empty");
+    playTapeClick();
+    return;
+  }
 
   state.spinning = true;
   state.winner = null;
   lastTickIndex = -1;
-  sayMascot("spin");
+  sayMascot(Math.random() > .45 ? "locked" : "spin");
   render();
   playStartSound();
 
@@ -422,28 +479,83 @@ function playTone(frequency, duration, startAt = 0, type = "sine", gainValue = .
   oscillator.stop(start + duration + .02);
 }
 
+function playNoise(duration, startAt = 0, gainValue = .05, frequency = 900, type = "bandpass") {
+  const audio = getAudioContext();
+  if (!audio) return;
+
+  const sampleCount = Math.max(1, Math.floor(audio.sampleRate * duration));
+  const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < sampleCount; index += 1) {
+    data[index] = Math.random() * 2 - 1;
+  }
+
+  const source = audio.createBufferSource();
+  const filter = audio.createBiquadFilter();
+  const gain = audio.createGain();
+  const start = audio.currentTime + startAt;
+
+  filter.type = type;
+  filter.frequency.setValueAtTime(frequency, start);
+  filter.Q.setValueAtTime(1.8, start);
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(gainValue, start + .018);
+  gain.gain.exponentialRampToValueAtTime(.001, start + duration);
+
+  source.buffer = buffer;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(audio.destination);
+  source.start(start);
+  source.stop(start + duration);
+}
+
+function playTapeClick(startAt = 0) {
+  playNoise(.035, startAt, .13, 2600, "highpass");
+  playTone(92, .055, startAt, "square", .08);
+  playTone(138, .045, startAt + .04, "triangle", .045);
+}
+
+function playTapeRewind(startAt = 0) {
+  [880, 990, 1180, 1320, 990, 740].forEach((frequency, index) => {
+    playTone(frequency, .055, startAt + index * .045, "sawtooth", .032);
+  });
+  playNoise(.42, startAt, .055, 1600, "bandpass");
+}
+
+function playVhsGlitch(startAt = 0) {
+  playNoise(.18, startAt, .1, 4200, "highpass");
+  playTone(72, .24, startAt, "sawtooth", .09);
+  playTone(48, .32, startAt + .12, "square", .045);
+}
+
 function playStartSound() {
+  playTapeClick(0);
+  playTapeRewind(.08);
   [330, 392, 494, 587, 740, 880, 988, 1175].forEach((frequency, index) => {
-    playTone(frequency, .075, index * .045, index % 2 ? "sawtooth" : "square", .028 + index * .003);
+    playTone(frequency, .07, .24 + index * .045, index % 2 ? "sawtooth" : "square", .026 + index * .003);
   });
   [82, 98].forEach((frequency, index) => {
-    playTone(frequency, .18, index * .18, "sine", .055);
+    playTone(frequency, .18, .2 + index * .18, "sine", .055);
   });
 }
 
 function playWinSound() {
-  playTone(62, .42, 0, "sine", .12);
+  playVhsGlitch(0);
+  playTapeClick(.22);
+  playTone(62, .42, .04, "sine", .12);
   [523, 659, 784, 1046, 1318, 1568].forEach((frequency, index) => {
-    playTone(frequency, .16, index * .055, index % 2 ? "triangle" : "sawtooth", .055);
+    playTone(frequency, .16, .24 + index * .055, index % 2 ? "triangle" : "sawtooth", .055);
   });
   [262, 330, 392, 523].forEach((frequency) => {
-    playTone(frequency, .48, .28, "sine", .04);
+    playTone(frequency, .48, .52, "sine", .04);
   });
 }
 
 function playTickSound(progress) {
   const frequency = 760 + Math.floor(progress * 640);
   playTone(frequency, .025, 0, "square", .018);
+  if (Math.random() > .72) playNoise(.022, 0, .018, 2600, "highpass");
   if (progress > .82) playTone(1800, .018, .012, "triangle", .012);
 }
 

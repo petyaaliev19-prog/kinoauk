@@ -207,6 +207,34 @@ h2 {
   text-transform: uppercase;
 }
 
+.dictatorship-banner {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(580px, 100%);
+  min-height: 28px;
+  margin-top: 10px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 184, 74, .34);
+  border-radius: 4px;
+  background: rgba(18, 15, 13, .66);
+  color: var(--muted);
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, .28);
+}
+
+body.dictatorship-active .dictatorship-banner {
+  border-color: rgba(255, 92, 73, .72);
+  background: rgba(75, 12, 8, .72);
+  color: #ffe75d;
+  text-shadow: 0 0 10px rgba(255, 231, 93, .7);
+  animation: vhs-warning-flicker .64s steps(2, end) infinite;
+}
+
 .top-actions {
   display: flex;
   gap: 8px;
@@ -286,30 +314,64 @@ canvas {
 }
 
 .winner {
+  position: relative;
   display: grid;
   grid-template-columns: 104px 1fr;
   align-items: center;
-  gap: 14px;
-  min-height: 134px;
+  gap: 18px;
+  min-height: 154px;
   margin-top: 18px;
-  padding: 16px;
-  border: 1px solid rgba(244, 197, 66, .32);
-  border-left: 4px solid var(--accent);
+  padding: 18px 22px 18px 18px;
+  border: 1px solid rgba(255, 184, 74, .58);
+  border-left: 6px solid var(--accent);
   border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(244, 197, 66, .18), rgba(255, 79, 154, .08) 70%),
-    #121416;
-  box-shadow: 0 0 36px rgba(244, 197, 66, .13);
+    linear-gradient(90deg, rgba(255, 184, 74, .22), rgba(255, 111, 157, .11) 70%),
+    #17130f;
+  box-shadow: 0 0 36px rgba(244, 197, 66, .13), inset 0 0 0 2px rgba(0, 0, 0, .28);
+  overflow: hidden;
+}
+
+.winner::before {
+  content: "";
+  position: absolute;
+  inset: 16px 20px;
+  border: 2px solid rgba(255, 243, 215, .24);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 72% 50%, #12100c 0 16px, rgba(255, 243, 215, .28) 17px 19px, transparent 20px),
+    radial-gradient(circle at 88% 50%, #12100c 0 16px, rgba(255, 243, 215, .28) 17px 19px, transparent 20px),
+    linear-gradient(90deg, transparent 0 58%, rgba(255, 243, 215, .12) 58% 98%, transparent 98%);
+  pointer-events: none;
+}
+
+.winner::after {
+  content: "MAX + OLYA VHS";
+  position: absolute;
+  right: 24px;
+  bottom: 14px;
+  color: rgba(255, 243, 215, .45);
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  pointer-events: none;
 }
 
 .winner p {
+  position: relative;
+  z-index: 1;
   margin: 0 0 6px;
   color: var(--muted);
   font-size: 13px;
+  font-family: "Courier New", monospace;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
 .winner a {
+  position: relative;
+  z-index: 1;
   color: var(--text);
   display: block;
   font-size: clamp(20px, 2.4vw, 30px);
@@ -322,21 +384,24 @@ canvas {
 .winner:not(.has-winner-poster) {
   grid-template-columns: 1fr;
   align-content: center;
+  padding-left: 22px;
 }
 
 .winner:not(.has-winner-poster) a {
   max-width: 760px;
-  font-size: clamp(28px, 3.6vw, 46px);
-  overflow-wrap: normal;
+  font-size: clamp(24px, 3.1vw, 40px);
+  overflow-wrap: anywhere;
 }
 
 .winner-poster {
+  position: relative;
+  z-index: 1;
   width: 104px;
   aspect-ratio: 2 / 3;
-  border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: 8px;
+  border: 2px solid rgba(255, 243, 215, .72);
+  border-radius: 4px;
   object-fit: cover;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .38);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .38), 0 0 18px rgba(255, 184, 74, .16);
 }
 
 .mascot-speech {
@@ -813,6 +878,101 @@ textarea::placeholder {
     radial-gradient(circle at 35% 25%, rgba(255, 231, 93, .15), transparent 45%),
     #15110d;
   box-shadow: inset 0 0 18px rgba(0, 0, 0, .38), 0 0 18px rgba(255, 184, 74, .12);
+}
+
+body.dictatorship-active .wheel-panel {
+  border-color: rgba(255, 92, 73, .72);
+  box-shadow:
+    0 0 0 1px rgba(255, 243, 215, .08),
+    0 26px 80px rgba(0, 0, 0, .5),
+    0 0 62px rgba(255, 92, 73, .18),
+    inset 0 0 42px rgba(255, 92, 73, .06);
+}
+
+body.dictatorship-active .wheel-panel::after {
+  content: "NO REVOTE";
+  position: absolute;
+  right: 28px;
+  bottom: 190px;
+  z-index: 4;
+  color: rgba(255, 231, 93, .78);
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-shadow: 2px 0 rgba(255, 79, 154, .45), -2px 0 rgba(84, 224, 189, .45);
+  transform: rotate(-3deg);
+  pointer-events: none;
+  animation: vhs-warning-flicker .52s steps(2, end) infinite;
+}
+
+body.dictatorship-active .primary:disabled {
+  opacity: 1;
+  color: #160d08;
+  background: repeating-linear-gradient(
+      -8deg,
+      rgba(0, 0, 0, .12) 0 7px,
+      rgba(255, 255, 255, .08) 7px 12px
+    ),
+    linear-gradient(135deg, #ff5c49, #ffe75d 52%, #54e0bd);
+  box-shadow: 0 0 34px rgba(255, 92, 73, .24), 0 0 30px rgba(255, 231, 93, .18);
+}
+
+.winner {
+  background:
+    linear-gradient(90deg, rgba(255, 184, 74, .22), rgba(255, 111, 157, .11) 70%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 5px),
+    #17130f;
+}
+
+.winner.has-winner-poster {
+  grid-template-columns: 112px 1fr;
+}
+
+.winner.has-winner-poster div {
+  position: relative;
+  z-index: 1;
+  margin-left: 0;
+  padding: 14px 142px 14px 16px;
+  border: 1px solid rgba(255, 243, 215, .34);
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, rgba(255, 243, 215, .14), rgba(255, 184, 74, .06)),
+    rgba(255, 243, 215, .06);
+}
+
+.winner.has-winner-poster div::before,
+.winner.has-winner-poster div::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 54px;
+  aspect-ratio: 1;
+  border: 7px solid rgba(255, 243, 215, .2);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #0d0b08 0 8px, transparent 9px),
+    conic-gradient(from 10deg, rgba(255, 243, 215, .34), transparent 0 18%, rgba(255, 243, 215, .28) 0 30%, transparent 0 52%, rgba(255, 243, 215, .3) 0 68%, transparent 0);
+  transform: translateY(-50%);
+}
+
+.winner.has-winner-poster div::before {
+  right: 76px;
+}
+
+.winner.has-winner-poster div::after {
+  right: 14px;
+}
+
+@keyframes vhs-warning-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .72;
+  }
 }
 
 @media (max-width: 900px) {
