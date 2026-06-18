@@ -7,7 +7,8 @@ const {
   mod,
   movieAtPointerFromRotation,
   movieMetaLabel,
-  normalizeMovie
+  normalizeMovie,
+  winnerEffectType
 } = require("../core");
 
 test("normalizeMovie accepts strings and applies fallback poster", () => {
@@ -61,6 +62,14 @@ test("movie metadata label and horror detection are stable", () => {
   assert.equal(movieMetaLabel({ year: "1978", genre: "ужасы" }), "1978 · ужасы");
   assert.equal(isHorrorMovie({ title: "Нечто", genre: "ужасы" }), true);
   assert.equal(isHorrorMovie({ title: "Амели", genre: "мелодрама" }), false);
+});
+
+test("winnerEffectType maps key genres to premiere effects", () => {
+  assert.equal(winnerEffectType({ title: "Пила", genre: "ужасы" }), "horror");
+  assert.equal(winnerEffectType({ title: "Манчестер у моря", genre: "драма" }), "drama");
+  assert.equal(winnerEffectType({ title: "Безумный Макс", genre: "боевик" }), "action");
+  assert.equal(winnerEffectType({ title: "Голый пистолет", genre: "комедия" }), "comedy");
+  assert.equal(winnerEffectType({ title: "Кояанискаци", genre: "документальный" }), "default");
 });
 
 test("mod handles negative rotations", () => {

@@ -30,7 +30,8 @@ const {
   mergeMovieList,
   mod,
   movieAtPointerFromRotation,
-  movieMetaLabel
+  movieMetaLabel,
+  winnerEffectType
 } = window.KinoaukCore;
 
 const state = {
@@ -65,10 +66,20 @@ const dictatorshipBanner = document.querySelector("#dictatorshipBanner");
 const confettiLayer = document.querySelector("#confettiLayer");
 const mascotSpeech = document.querySelector("#mascotSpeech");
 const posterBackdrop = document.querySelector("#posterBackdrop");
+const winnerModal = document.querySelector("#winnerModal");
+const winnerModalEffects = document.querySelector("#winnerModalEffects");
+const winnerModalLabel = document.querySelector("#winnerModalLabel");
+const winnerModalPoster = document.querySelector("#winnerModalPoster");
+const winnerModalMeta = document.querySelector("#winnerModalMeta");
+const winnerModalTitle = document.querySelector("#winnerModalTitle");
+const watchWinnerButton = document.querySelector("#watchWinnerButton");
+const modalRemoveWinnerButton = document.querySelector("#modalRemoveWinnerButton");
+const closeWinnerModalButton = document.querySelector("#closeWinnerModalButton");
 
 let audioContext = null;
 let soundEnabled = loadJson("kinoauk.sound.v1", true);
 let lastTickIndex = -1;
+let horrorScream = null;
 
 const mascotLines = {
   idle: [
@@ -451,26 +462,11 @@ function spin() {
     state.history.unshift({ ...state.winner, wonAt: new Date().toISOString() });
     state.history = state.history.slice(0, 20);
     save();
-    playWinSound();
     render();
-    triggerWinnerGlitch(state.winner);
-    showVhsWinBurst(state.winner);
+    showWinnerPremiere(state.winner);
   }
 
   requestAnimationFrame(frame);
-}
-
-function triggerWinnerGlitch(movie = null) {
-  winnerBox.classList.remove("vhs-reveal", "horror-reveal");
-  void winnerBox.offsetWidth;
-  winnerBox.classList.add(isHorrorMovie(movie) ? "horror-reveal" : "vhs-reveal");
-  document.body.classList.add("vhs-glitching");
-  document.body.classList.toggle("horror-glitching", isHorrorMovie(movie));
-
-  setTimeout(() => {
-    winnerBox.classList.remove("vhs-reveal", "horror-reveal");
-    document.body.classList.remove("vhs-glitching", "horror-glitching");
-  }, 1150);
 }
 
 function movieAtPointer(rotation) {
@@ -622,19 +618,184 @@ function tickWheel(rotation, progress) {
   playTickSound(progress);
 }
 
-function showVhsWinBurst(movie = null) {
+function showWinnerPremiere(movie) {
+  const effect = winnerEffectType(movie);
+  renderWinnerModal(movie, effect);
+  showGenreWinBurst(movie, effect);
+  playGenreWinSound(movie, effect);
+}
+
+function renderWinnerModal(movie, effect) {
+  winnerModal.hidden = false;
+  winnerModal.className = `winner-modal active ${effect}-premiere`;
+  winnerModalLabel.textContent = effectLabel(effect);
+  winnerModalTitle.textContent = movie.title;
+  winnerModalMeta.textContent = ["Максим и Оля сегодня смотрят", movieMetaLabel(movie)]
+    .filter(Boolean)
+    .join(" · ");
+  winnerModalPoster.src = movie.poster || FALLBACK_POSTER;
+  winnerModalPoster.alt = movie.title;
+  winnerModalPoster.onerror = () => {
+    winnerModalPoster.onerror = null;
+    winnerModalPoster.src = FALLBACK_POSTER;
+  };
+}
+
+function closeWinnerModal() {
+  winnerModal.hidden = true;
+  winnerModal.className = "winner-modal";
+  winnerModalEffects.textContent = "";
+}
+
+function removeWinnerFromModal() {
+  if (!state.winner) return;
+  state.movies = state.movies.filter((movie) => movie !== state.winner);
+  state.winner = null;
+  closeWinnerModal();
+  save();
+  render();
+}
+
+function showGenreWinBurst(movie = null, effect = winnerEffectType(movie)) {
   confettiLayer.textContent = "";
+  winnerModalEffects.textContent = "";
   const burst = document.createElement("div");
   const stamp = document.createElement("div");
-  const horror = isHorrorMovie(movie);
-  burst.className = horror ? "static-burst horror-static-burst" : "static-burst";
-  stamp.className = horror ? "vhs-winner-stamp horror-stamp" : "vhs-winner-stamp";
-  stamp.textContent = horror ? "НОЧНОЙ СЕАНС" : "СЕГОДНЯ В ПРОКАТЕ";
+  burst.className = `static-burst ${effect}-static-burst`;
+  stamp.className = `vhs-winner-stamp ${effect}-stamp`;
+  stamp.textContent = effectLabel(effect);
   confettiLayer.append(burst, stamp);
+  winnerModalEffects.append(...createGenreEffectNodes(effect));
 
   setTimeout(() => {
     confettiLayer.textContent = "";
   }, 1450);
+}
+
+function createGenreEffectNodes(effect) {
+  if (effect === "horror") {
+    return Array.from({ length: 18 }, (_, index) => {
+      const drop = document.createElement("span");
+      drop.className = "blood-drop";
+      drop.style.left = `${4 + index * 5.4 + Math.random() * 2}%`;
+      drop.style.animationDelay = `${Math.random() * .55}s`;
+      drop.style.setProperty("--fall", `${160 + Math.random() * 260}px`);
+      return drop;
+    });
+  }
+
+  if (effect === "drama") {
+    return Array.from({ length: 34 }, (_, index) => {
+      const rain = document.createElement("span");
+      rain.className = "rain-drop";
+      rain.style.left = `${(index * 7 + Math.random() * 6) % 100}%`;
+      rain.style.animationDelay = `${Math.random() * .9}s`;
+      rain.style.setProperty("--fall", `${240 + Math.random() * 340}px`);
+      return rain;
+    });
+  }
+
+  if (effect === "action") {
+    return Array.from({ length: 14 }, (_, index) => {
+      const bullet = document.createElement("span");
+      bullet.className = index % 4 === 0 ? "muzzle-flash" : "bullet-tracer";
+      bullet.style.top = `${18 + Math.random() * 64}%`;
+      bullet.style.animationDelay = `${Math.random() * .7}s`;
+      return bullet;
+    });
+  }
+
+  if (effect === "comedy") {
+    return Array.from({ length: 16 }, (_, index) => {
+      const laugh = document.createElement("span");
+      laugh.className = "laugh-pop";
+      laugh.textContent = index % 3 === 0 ? "ХА!" : index % 3 === 1 ? "LOL" : "★";
+      laugh.style.left = `${8 + Math.random() * 82}%`;
+      laugh.style.top = `${12 + Math.random() * 72}%`;
+      laugh.style.animationDelay = `${Math.random() * .65}s`;
+      return laugh;
+    });
+  }
+
+  return [];
+}
+
+function effectLabel(effect) {
+  return {
+    action: "БОЕВОЙ ПРОКАТ",
+    comedy: "СМЕШНОЙ СЕАНС",
+    drama: "ДРАМАТИЧЕСКИЙ СЕАНС",
+    horror: "НОЧНОЙ СЕАНС",
+    default: "СЕГОДНЯ В ПРОКАТЕ"
+  }[effect] || "СЕГОДНЯ В ПРОКАТЕ";
+}
+
+function playGenreWinSound(movie, effect = winnerEffectType(movie)) {
+  if (effect === "horror") {
+    playRealHorrorScream();
+    playHorrorSoundBed();
+    return;
+  }
+  if (effect === "drama") {
+    playDramaWinSound();
+    return;
+  }
+  if (effect === "action") {
+    playActionWinSound();
+    return;
+  }
+  if (effect === "comedy") {
+    playComedyWinSound();
+    return;
+  }
+  playWinSound();
+}
+
+function playRealHorrorScream() {
+  if (!soundEnabled) return;
+  horrorScream ||= new Audio("assets/sounds/female-scream-pixabay-41894.mp3");
+  horrorScream.currentTime = 0;
+  horrorScream.volume = .86;
+  const playback = horrorScream.play();
+  if (playback?.catch) playback.catch(() => playSyntheticScream(.08));
+}
+
+function playHorrorSoundBed() {
+  playVhsGlitch(0);
+  playPitchSlide(70, 28, .82, 0, "sawtooth", .09);
+  playNoise(.38, .16, .08, 600, "bandpass");
+  playCapstanThump(.34);
+}
+
+function playSyntheticScream(startAt = 0) {
+  playPitchSlide(920, 1320, .18, startAt, "sawtooth", .05);
+  playPitchSlide(1320, 760, .42, startAt + .16, "sawtooth", .045);
+  playNoise(.36, startAt + .12, .045, 3400, "highpass");
+}
+
+function playDramaWinSound() {
+  playTapeHiss(.7, 0, .015);
+  playNoise(.9, 0, .035, 1300, "bandpass");
+  [220, 261.63, 196, 174.61].forEach((frequency, index) => {
+    playTone(frequency, .42, index * .2, "sine", .04);
+  });
+}
+
+function playActionWinSound() {
+  playCapstanThump(0);
+  [0, .12, .2, .38].forEach((startAt, index) => {
+    playNoise(.035, startAt, .12, 1800 + index * 500, "bandpass");
+    playTone(64, .05, startAt, "square", .055);
+  });
+  playNoise(.28, .42, .04, 4200, "highpass");
+}
+
+function playComedyWinSound() {
+  [330, 440, 392, 523].forEach((frequency, index) => {
+    playTone(frequency, .11, index * .12, index % 2 ? "square" : "triangle", .04);
+  });
+  playPitchSlide(220, 520, .18, .42, "triangle", .045);
+  playNoise(.05, .62, .06, 1800, "bandpass");
 }
 
 addForm.addEventListener("submit", (event) => {
@@ -665,14 +826,24 @@ removeWinnerButton.addEventListener("click", () => {
   if (!state.winner) return;
   state.movies = state.movies.filter((movie) => movie !== state.winner);
   state.winner = null;
+  closeWinnerModal();
   save();
   render();
 });
 
 resetWinnerButton.addEventListener("click", () => {
   state.winner = null;
+  closeWinnerModal();
   sayMascot("reset");
   render();
+});
+
+watchWinnerButton.addEventListener("click", closeWinnerModal);
+closeWinnerModalButton.addEventListener("click", closeWinnerModal);
+modalRemoveWinnerButton.addEventListener("click", removeWinnerFromModal);
+
+winnerModal.addEventListener("click", (event) => {
+  if (event.target === winnerModal) closeWinnerModal();
 });
 
 soundButton.addEventListener("click", () => {

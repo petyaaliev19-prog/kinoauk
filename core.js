@@ -61,9 +61,27 @@
   }
 
   function isHorrorMovie(movie) {
-    if (!movie) return false;
+    return winnerEffectType(movie) === "horror";
+  }
+
+  function winnerEffectType(movie) {
+    if (!movie) return "default";
     const signal = `${movie.title || ""} ${movie.genre || ""}`.toLowerCase();
-    return /(ужас|хоррор|пила|смерт|дьявол|прокля|псих|монстр|зомби|кошмар|ад|ночь|вампир|одержим)/i.test(signal);
+
+    if (/(ужас|хоррор|пила|смерт|дьявол|прокля|псих|монстр|зомби|кошмар|ад|ночь|вампир|одержим)/i.test(signal)) {
+      return "horror";
+    }
+    if (/(драма|мелодрам|трагед|слез|судьб|одиночеств)/i.test(signal)) {
+      return "drama";
+    }
+    if (/(боевик|экшен|войн|бой|стрел|оруж|погон|гангстер|кримин|полиц|драйв|ярост|уби)/i.test(signal)) {
+      return "action";
+    }
+    if (/(комед|юмор|смеш|парод|приключ|семейн)/i.test(signal)) {
+      return "comedy";
+    }
+
+    return "default";
   }
 
   function mod(value, max) {
@@ -93,6 +111,7 @@
     mod,
     movieAtPointerFromRotation,
     movieMetaLabel,
-    normalizeMovie
+    normalizeMovie,
+    winnerEffectType
   };
 });
