@@ -674,26 +674,9 @@ function showGenreWinBurst(movie = null, effect = winnerEffectType(movie)) {
 
 function createGenreEffectNodes(effect) {
   if (effect === "horror") {
-    const drips = Array.from({ length: 9 }, (_, index) => {
-      const drip = document.createElement("span");
-      drip.className = "blood-drip";
-      drip.style.left = `${6 + index * 10.5 + Math.random() * 4}%`;
-      drip.style.animationDelay = `${Math.random() * .4}s`;
-      drip.style.setProperty("--length", `${96 + Math.random() * 190}px`);
-      drip.style.setProperty("--width", `${12 + Math.random() * 20}px`);
-      return drip;
-    });
-    const splashes = Array.from({ length: 16 }, () => {
-      const splash = document.createElement("span");
-      splash.className = "blood-splash";
-      splash.style.left = `${8 + Math.random() * 84}%`;
-      splash.style.top = `${18 + Math.random() * 56}%`;
-      splash.style.animationDelay = `${Math.random() * .55}s`;
-      splash.style.setProperty("--size", `${6 + Math.random() * 20}px`);
-      splash.style.setProperty("--angle", `${-42 + Math.random() * 84}deg`);
-      return splash;
-    });
-    return [...drips, ...splashes];
+    const overlay = document.createElement("span");
+    overlay.className = "blood-overlay";
+    return [overlay];
   }
 
   if (effect === "drama") {

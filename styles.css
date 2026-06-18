@@ -938,65 +938,17 @@ canvas {
   color: #ffe75d;
 }
 
-.horror-premiere .winner-modal-effects::before {
-  content: "";
+.blood-overlay {
   position: absolute;
-  left: -4%;
-  right: -4%;
-  top: -18px;
-  height: 88px;
-  background:
-    radial-gradient(circle at 8% 72%, #5b0000 0 16px, transparent 17px),
-    radial-gradient(circle at 18% 62%, #8b0000 0 24px, transparent 25px),
-    radial-gradient(circle at 33% 70%, #6f0000 0 18px, transparent 19px),
-    radial-gradient(circle at 51% 58%, #a30000 0 28px, transparent 29px),
-    radial-gradient(circle at 73% 72%, #6b0000 0 20px, transparent 21px),
-    radial-gradient(circle at 88% 62%, #910000 0 26px, transparent 27px),
-    linear-gradient(180deg, #6d0000 0 46px, transparent 47px);
-  filter: drop-shadow(0 0 16px rgba(255, 0, 0, .28));
-  opacity: .92;
-}
-
-.blood-drip {
-  position: absolute;
-  top: -8px;
-  width: var(--width);
-  height: var(--length);
-  border-radius: 0 0 999px 999px;
-  background:
-    linear-gradient(90deg, rgba(255, 80, 80, .22), transparent 35%),
-    linear-gradient(180deg, #8b0000 0%, #4b0000 72%, rgba(95, 0, 0, .15) 100%);
-  box-shadow: inset -3px 0 0 rgba(0, 0, 0, .14), 0 0 14px rgba(255, 0, 0, .26);
-  transform-origin: top center;
+  inset: -2vh -2vw;
+  background: url("assets/blood-overlay.png") top center / cover no-repeat;
+  filter:
+    drop-shadow(0 0 22px rgba(255, 0, 0, .24))
+    contrast(1.08)
+    saturate(1.12);
   opacity: 0;
-  animation: blood-drip-in 2.6s cubic-bezier(.18, .9, .2, 1) forwards;
-}
-
-.blood-drip::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -8px;
-  width: calc(var(--width) * 1.2);
-  aspect-ratio: 1;
-  border-radius: 50% 45% 58% 42%;
-  background: #5d0000;
-  transform: translateX(-50%);
-}
-
-.blood-splash {
-  position: absolute;
-  width: var(--size);
-  aspect-ratio: 1;
-  border-radius: 54% 46% 60% 40%;
-  background: radial-gradient(circle at 35% 28%, #ff3d3d 0 12%, #8b0000 38%, #430000 100%);
-  opacity: 0;
-  transform: rotate(var(--angle, -18deg)) scale(.2);
-  box-shadow:
-    18px -8px 0 -7px #740000,
-    -14px 10px 0 -8px #9c0000,
-    8px 18px 0 -9px #550000;
-  animation: blood-splash-in 1.65s cubic-bezier(.18, .9, .2, 1) forwards;
+  transform: scale(1.025);
+  animation: blood-overlay-in 1.35s cubic-bezier(.18, .9, .2, 1) forwards;
 }
 
 .rain-drop {
@@ -1629,36 +1581,20 @@ body.dictatorship-active .primary:disabled {
   }
 }
 
-@keyframes blood-drip-in {
+@keyframes blood-overlay-in {
   0% {
     opacity: 0;
-    transform: scaleY(.08);
+    transform: translateY(-22px) scale(1.035);
   }
 
-  16% {
-    opacity: .95;
+  42% {
+    opacity: .96;
+    transform: translateY(0) scale(1.012);
   }
 
   100% {
-    opacity: .88;
-    transform: scaleY(1);
-  }
-}
-
-@keyframes blood-splash-in {
-  0% {
-    opacity: 0;
-    transform: rotate(-18deg) scale(.2);
-  }
-
-  18% {
-    opacity: .95;
-    transform: rotate(-18deg) scale(1.14);
-  }
-
-  100% {
-    opacity: .78;
-    transform: rotate(-18deg) scale(1);
+    opacity: .86;
+    transform: translateY(0) scale(1);
   }
 }
 
