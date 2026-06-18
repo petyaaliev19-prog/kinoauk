@@ -185,6 +185,7 @@ function render() {
   movieCount.textContent = state.movies.length;
   wheelWrap.classList.toggle("is-empty", state.movies.length === 0);
   document.body.classList.toggle("dictatorship-active", state.spinning);
+  document.body.dataset.vhsOsd = vhsOsdLabel();
   dictatorshipBanner.textContent = state.spinning
     ? "РЕЗУЛЬТАТ ЗАПЕЧАТАН НА VHS. ПЕРЕГОЛОСОВКИ НЕТ."
     : "Результат ещё можно обсуждать. Пока.";
@@ -203,6 +204,19 @@ function render() {
     control.disabled = state.spinning;
   });
   soundButton.classList.toggle("sound-on", soundEnabled);
+}
+
+function vhsOsdLabel() {
+  const now = new Date();
+  const time = now.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+
+  if (state.spinning) return `REC  SP  ${time}`;
+  if (state.winner) return `PLAY SP  ${time}`;
+  return `STOP SP  ${String(state.movies.length).padStart(2, "0")} TAPES`;
 }
 
 function renderPosterBackdrop() {
@@ -442,9 +456,22 @@ function spin() {
     burstConfetti();
     launchFireworks();
     render();
+    triggerWinnerGlitch();
   }
 
   requestAnimationFrame(frame);
+}
+
+function triggerWinnerGlitch() {
+  winnerBox.classList.remove("vhs-reveal");
+  void winnerBox.offsetWidth;
+  winnerBox.classList.add("vhs-reveal");
+  document.body.classList.add("vhs-glitching");
+
+  setTimeout(() => {
+    winnerBox.classList.remove("vhs-reveal");
+    document.body.classList.remove("vhs-glitching");
+  }, 1150);
 }
 
 function movieAtPointer(rotation) {

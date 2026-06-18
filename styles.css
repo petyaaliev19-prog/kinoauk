@@ -727,7 +727,7 @@ body {
 }
 
 body::before {
-  content: "PLAY  SP  00:00:00";
+  content: attr(data-vhs-osd);
   position: fixed;
   top: 18px;
   left: 22px;
@@ -739,6 +739,15 @@ body::before {
   letter-spacing: .08em;
   text-shadow: 0 0 8px rgba(255, 184, 74, .45);
   pointer-events: none;
+}
+
+body.vhs-glitching::before {
+  color: #ffe75d;
+  text-shadow:
+    2px 0 rgba(255, 79, 154, .72),
+    -2px 0 rgba(84, 224, 189, .72),
+    0 0 12px rgba(255, 231, 93, .65);
+  animation: osd-glitch .18s steps(2, end) 6;
 }
 
 body::after {
@@ -1089,6 +1098,36 @@ body.dictatorship-active .primary:disabled {
   border-color: rgba(255, 243, 215, .82);
 }
 
+.winner.has-winner.vhs-reveal {
+  animation: winner-vhs-reveal 1.05s steps(3, end);
+}
+
+.winner.has-winner.vhs-reveal::before {
+  animation: tape-tracking .82s steps(4, end);
+}
+
+.winner.has-winner.vhs-reveal::after {
+  animation: osd-glitch .18s steps(2, end) 6;
+}
+
+.winner.has-winner.vhs-reveal > div,
+.winner.has-winner.vhs-reveal .winner-poster {
+  animation: text-vhs-jump .9s steps(2, end);
+}
+
+.winner.has-winner.vhs-reveal > div::after {
+  content: "";
+  position: absolute;
+  inset: -10px -230px -10px -12px;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, transparent 0 16%, rgba(255, 243, 215, .4) 17% 19%, transparent 20% 44%, rgba(84, 224, 189, .2) 45% 47%, transparent 48% 100%),
+    repeating-linear-gradient(0deg, transparent 0 7px, rgba(0, 0, 0, .24) 7px 9px);
+  opacity: 0;
+  pointer-events: none;
+  animation: tracking-flash .82s steps(4, end);
+}
+
 @keyframes vhs-warning-flicker {
   0%,
   100% {
@@ -1097,6 +1136,108 @@ body.dictatorship-active .primary:disabled {
 
   50% {
     opacity: .72;
+  }
+}
+
+@keyframes winner-vhs-reveal {
+  0% {
+    opacity: 0;
+    filter: brightness(1.8) contrast(1.7) saturate(0);
+    transform: translateX(-18px) skewX(-7deg);
+  }
+
+  14% {
+    opacity: 1;
+    transform: translateX(12px) skewX(5deg);
+  }
+
+  28% {
+    filter: brightness(.7) contrast(2.1) saturate(1.8);
+    transform: translateX(-8px) skewX(-3deg);
+  }
+
+  42% {
+    filter: brightness(1.35) contrast(1.25) saturate(1.2);
+    transform: translateX(4px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+@keyframes tape-tracking {
+  0%,
+  100% {
+    clip-path: inset(0);
+  }
+
+  20% {
+    clip-path: inset(12% 0 4% 0);
+  }
+
+  45% {
+    clip-path: inset(2% 0 26% 0);
+  }
+
+  68% {
+    clip-path: inset(30% 0 8% 0);
+  }
+}
+
+@keyframes text-vhs-jump {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    text-shadow: none;
+  }
+
+  18% {
+    transform: translate(8px, -1px);
+    text-shadow: 4px 0 rgba(255, 79, 154, .48), -4px 0 rgba(84, 224, 189, .48);
+  }
+
+  36% {
+    transform: translate(-5px, 2px);
+  }
+
+  54% {
+    transform: translate(3px, -2px);
+  }
+}
+
+@keyframes tracking-flash {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  18%,
+  42%,
+  66% {
+    opacity: .78;
+  }
+
+  30% {
+    transform: translateY(-18px);
+  }
+
+  58% {
+    transform: translateY(22px);
+  }
+}
+
+@keyframes osd-glitch {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(3px, -1px);
   }
 }
 
