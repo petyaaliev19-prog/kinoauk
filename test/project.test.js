@@ -15,7 +15,7 @@ test("app.js consumes the shared core module", () => {
 });
 
 test("runtime files needed by shortcuts exist", () => {
-  for (const file of ["server.js", "start-kinoauk.cmd", "stop-kinoauk.cmd", "assets/mascot.png", "assets/sounds/README.md", "assets/effects/drama-rain-xian.webm", "assets/effects/README.md"]) {
+  for (const file of ["server.js", "start-kinoauk.cmd", "stop-kinoauk.cmd", "assets/mascot.png", "assets/sounds/README.md"]) {
     assert.equal(fs.existsSync(file), true, `${file} should exist`);
   }
 });
@@ -37,15 +37,15 @@ test("genre auction markup and runtime hooks are present", () => {
   }
   assert.match(app, /filterMoviesByGenres/);
   assert.match(app, /animateGenreRemontage/);
-  assert.match(app, /showGenreAtmosphere/);
-  assert.match(app, /assets\/effects\/drama-rain-xian\.webm/);
+  assert.match(app, /showGenreStageEffect/);
   assert.match(app, /sayMascotGenre/);
   assert.match(app, /setMascotSpeech/);
-  assert.match(css, /\.genre-media-overlay/);
-  assert.match(css, /\.genre-media-drama/);
+  assert.match(css, /\.genre-chip-effect-action/);
+  assert.match(css, /\.genre-chip-effect-horror/);
+  assert.match(css, /\.genre-stage-horror/);
   assert.match(css, /@keyframes mascot-speech-pop/);
-  assert.doesNotMatch(app, /showGenreStageEffect/);
-  assert.doesNotMatch(app, /runGenreChipEffect/);
+  assert.doesNotMatch(css, /\.genre-stage-thriller/);
+  assert.equal(fs.existsSync("assets/genre-horror-shadow.png"), true);
 });
 
 test("app uses genre premiere effects and real scream fallback path", () => {

@@ -412,6 +412,135 @@ body.dictatorship-active .dictatorship-banner {
   color: #ffe75d;
 }
 
+.genre-chip i {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.genre-chip-effect {
+  animation: genre-chip-press .42s cubic-bezier(.18, .94, .24, 1) both;
+}
+
+.genre-chip-effect::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 3;
+  border-radius: 4px;
+  background: linear-gradient(110deg, transparent 24%, rgba(255, 255, 255, .64) 48%, transparent 72%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-115%);
+  animation: genre-chip-lacquer .44s ease-out forwards;
+}
+
+.genre-chip-effect-action i,
+.genre-chip-effect-horror i,
+.genre-chip-effect-drama i,
+.genre-chip-effect-comedy i,
+.genre-chip-effect-sci-fi i,
+.genre-chip-effect-thriller i {
+  background: none;
+  animation: none;
+}
+
+.genre-chip-effect-action i::before,
+.genre-chip-effect-action i::after,
+.genre-chip-effect-horror i::before,
+.genre-chip-effect-horror i::after,
+.genre-chip-effect-drama i::before,
+.genre-chip-effect-drama i::after,
+.genre-chip-effect-comedy i::before,
+.genre-chip-effect-comedy i::after,
+.genre-chip-effect-sci-fi i::before,
+.genre-chip-effect-sci-fi i::after,
+.genre-chip-effect-thriller i::before,
+.genre-chip-effect-thriller i::after {
+  content: none;
+  animation: none;
+}
+
+.genre-chip-effect-action i::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255, 231, 93, .94);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(255, 138, 43, .12), 0 0 15px rgba(255, 184, 74, .65);
+  transform: translate(-50%, -50%) scale(.3);
+  animation: filter-action-lock .42s cubic-bezier(.14, .9, .2, 1) forwards;
+}
+
+.genre-chip-effect-action i::after {
+  content: "";
+  position: absolute;
+  inset: 50% 8px auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ffe75d 24%, #ff8a2b 76%, transparent);
+  box-shadow: 0 -7px 0 rgba(255, 231, 93, .46), 0 7px 0 rgba(255, 231, 93, .46);
+  opacity: 0;
+  transform: translateY(-50%) scaleX(.25);
+  animation: filter-action-scan .42s ease-out forwards;
+}
+
+.genre-chip-effect-horror i {
+  background: linear-gradient(90deg, transparent 0 42%, rgba(255, 47, 47, .42) 48%, transparent 58%);
+  mix-blend-mode: screen;
+  animation: filter-horror-track .46s steps(3, end) forwards;
+}
+
+.genre-chip-effect-drama i::before {
+  content: "";
+  position: absolute;
+  inset: -20px 12px;
+  background: repeating-linear-gradient(105deg, transparent 0 12px, rgba(172, 211, 255, .72) 13px 14px, transparent 15px 24px);
+  opacity: 0;
+  transform: translateY(-24px);
+  animation: filter-drama-rain .5s ease-out forwards;
+}
+
+.genre-chip-effect-comedy i::after {
+  content: "HA!";
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+  color: #ffe75d;
+  font-family: "Courier New", monospace;
+  font-size: 15px;
+  font-weight: 900;
+  opacity: 0;
+  text-shadow: 2px 1px 0 rgba(255, 79, 154, .7);
+  transform: rotate(-10deg) scale(.45);
+  animation: filter-comedy-pop .46s cubic-bezier(.2, 1.3, .34, 1) forwards;
+}
+
+.genre-chip-effect-sci-fi i::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 18px;
+  background: linear-gradient(90deg, transparent, rgba(84, 224, 189, .82), transparent);
+  box-shadow: 0 0 18px rgba(84, 224, 189, .56);
+  opacity: 0;
+  transform: translateX(-32px);
+  animation: filter-sci-scan .44s ease-out forwards;
+}
+
+.genre-chip-effect-thriller i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent 0 32%, rgba(12, 60, 54, .46) 78%);
+  opacity: 0;
+  animation: filter-thriller-focus .42s ease-out forwards;
+}
+
 .genre-auction-actions {
   margin-top: 14px;
 }
@@ -438,36 +567,166 @@ body.dictatorship-active .dictatorship-banner {
   pointer-events: none;
 }
 
-.genre-media-overlay,
-.genre-media-wash {
+.genre-stage-effect {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
-  animation: genre-media-arrival 1.75s cubic-bezier(.2, .7, .2, 1) both;
 }
 
-.genre-media-overlay {
-  object-fit: cover;
+.genre-stage-horror img {
+  position: absolute;
+  bottom: -42px;
+  left: -14vw;
+  width: min(16vw, 220px);
+  min-width: 150px;
+  opacity: 0;
+  filter: drop-shadow(0 0 28px rgba(255, 42, 70, .18));
+  transform: translateX(0) scale(.92);
+  animation: genre-horror-cross 1.18s cubic-bezier(.18, .82, .2, 1) forwards;
 }
 
-.genre-media-drama {
-  opacity: .62;
-  filter: saturate(.52) hue-rotate(172deg) brightness(.68) contrast(1.18);
-  mix-blend-mode: screen;
+.genre-stage-action::before,
+.genre-stage-action::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 42vw;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 208, 110, .92), transparent);
+  box-shadow: 0 0 22px rgba(255, 152, 43, .48);
+  opacity: 0;
+  transform: translateX(-30vw);
+  animation: genre-action-sweep .76s cubic-bezier(.12, .86, .2, 1) forwards;
 }
 
-.genre-media-wash-drama {
-  background: linear-gradient(180deg, rgba(47, 97, 148, .24), rgba(8, 16, 36, .48));
-  mix-blend-mode: screen;
+.genre-stage-action::before { top: 38vh; }
+.genre-stage-action::after { top: calc(38vh + 11px); animation-delay: .08s; }
+
+.genre-stage-drama::before {
+  content: "";
+  position: absolute;
+  top: 18vh;
+  left: max(8px, calc((100vw - 1280px) / 2 - 310px));
+  width: 320px;
+  height: 460px;
+  background: repeating-linear-gradient(104deg, transparent 0 13px, rgba(177, 211, 255, .3) 14px 15px, transparent 16px 28px);
+  opacity: 0;
+  transform: translateY(-18px);
+  animation: genre-drama-window 1s ease-out forwards;
 }
 
-@keyframes genre-media-arrival {
-  0% { opacity: 0; transform: scale(1.07); }
-  18% { opacity: 1; }
-  76% { opacity: .82; transform: scale(1.02); }
-  100% { opacity: 0; transform: scale(1); }
+.genre-stage-comedy::before {
+  content: "";
+  position: absolute;
+  top: 30vh;
+  left: max(8px, calc((100vw - 1280px) / 2 - 310px));
+  width: 230px;
+  height: 74px;
+  border-top: 3px solid rgba(255, 231, 93, .8);
+  border-bottom: 3px solid rgba(255, 79, 154, .65);
+  box-shadow: 0 0 32px rgba(255, 184, 74, .24);
+  opacity: 0;
+  transform: rotate(-3deg) scaleX(.68);
+  animation: genre-comedy-frame .74s cubic-bezier(.18, 1.18, .28, 1) forwards;
+}
+
+.genre-stage-sci-fi::before {
+  content: "";
+  position: absolute;
+  top: 12vh;
+  left: max(8px, calc((100vw - 1280px) / 2 - 310px));
+  width: 270px;
+  height: 72vh;
+  background: linear-gradient(90deg, transparent, rgba(84, 224, 189, .34), transparent);
+  box-shadow: 0 0 44px rgba(84, 224, 189, .25);
+  opacity: 0;
+  transform: translateX(-180px);
+  animation: genre-sci-radar .86s ease-out forwards;
+}
+
+@keyframes genre-chip-press {
+  0% { transform: scale(1); }
+  28% { transform: scale(.94); }
+  100% { transform: scale(1); }
+}
+
+@keyframes genre-chip-lacquer {
+  0% { opacity: 0; transform: translateX(-115%); }
+  24% { opacity: .82; }
+  100% { opacity: 0; transform: translateX(115%); }
+}
+
+@keyframes genre-horror-cross {
+  0% { opacity: 0; transform: translateX(0) translateY(18px) scale(.92); }
+  18% { opacity: .72; }
+  72% { opacity: .5; transform: translateX(86vw) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(112vw) translateY(-8px) scale(1.03); }
+}
+
+@keyframes genre-action-sweep {
+  0% { opacity: 0; transform: translateX(-30vw); }
+  16% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(64vw); }
+}
+
+@keyframes genre-drama-window {
+  0% { opacity: 0; transform: translateY(-18px); }
+  32% { opacity: .46; }
+  100% { opacity: 0; transform: translateY(34px); }
+}
+
+@keyframes genre-comedy-frame {
+  0% { opacity: 0; transform: rotate(-3deg) scaleX(.68); }
+  34% { opacity: .88; transform: rotate(-3deg) scaleX(1); }
+  100% { opacity: 0; transform: rotate(-3deg) scaleX(.96); }
+}
+
+@keyframes genre-sci-radar {
+  0% { opacity: 0; transform: translateX(-180px); }
+  28% { opacity: .72; }
+  100% { opacity: 0; transform: translateX(320px); }
+}
+
+@keyframes filter-action-lock {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-45deg); }
+  48% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.6) rotate(0); }
+}
+
+@keyframes filter-action-scan {
+  0% { opacity: 0; transform: translateY(-50%) scaleX(.2); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-50%) scaleX(1.1); }
+}
+
+@keyframes filter-horror-track {
+  0% { opacity: 0; transform: translateX(-40%); }
+  38% { opacity: .9; }
+  100% { opacity: 0; transform: translateX(42%); }
+}
+
+@keyframes filter-drama-rain {
+  0% { opacity: 0; transform: translateY(-28px); }
+  36% { opacity: .75; }
+  100% { opacity: 0; transform: translateY(42px); }
+}
+
+@keyframes filter-comedy-pop {
+  0% { opacity: 0; transform: rotate(-10deg) scale(.45); }
+  38% { opacity: 1; transform: rotate(-10deg) scale(1.16); }
+  100% { opacity: 0; transform: rotate(-10deg) scale(1); }
+}
+
+@keyframes filter-sci-scan {
+  0% { opacity: 0; transform: translateX(-32px); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(118px); }
+}
+
+@keyframes filter-thriller-focus {
+  0% { opacity: 0; transform: scale(.78); }
+  45% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.12); }
 }
 
 .wheel-wrap {

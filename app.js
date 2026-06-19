@@ -310,33 +310,34 @@ function toggleGenreDraft(genre) {
   const selected = genreDraft.includes(genre);
   genreDraft = selected ? genreDraft.filter((item) => item !== genre) : [...genreDraft, genre];
   renderGenreAuction();
+  const chip = genreChipList.querySelector(`[data-genre="${CSS.escape(genre)}"]`);
+  if (chip) runGenreChipEffect(chip, genreEffectType(genre));
   const effect = genreEffectType(genre);
+  playGenreFilterSound(effect);
+  showGenreStageEffect(effect);
   sayMascotGenre(effect);
 }
 
-function showGenreAtmosphere(effect) {
+function runGenreChipEffect(chip, effect) {
+  chip.classList.remove("genre-chip-effect");
+  void chip.offsetWidth;
+  chip.classList.add("genre-chip-effect", `genre-chip-effect-${effect}`);
+  setTimeout(() => chip.classList.remove("genre-chip-effect", `genre-chip-effect-${effect}`), 520);
+}
+
+function showGenreStageEffect(effect) {
   genreStageEffects.textContent = "";
-  if (effect !== "drama") return;
-
-  const wash = document.createElement("div");
-  wash.className = "genre-media-wash genre-media-wash-drama";
-  const rain = document.createElement("video");
-  rain.className = "genre-media-overlay genre-media-drama";
-  rain.src = "assets/effects/drama-rain-xian.webm";
-  rain.muted = true;
-  rain.playsInline = true;
-  rain.preload = "auto";
-  rain.setAttribute("aria-hidden", "true");
-  genreStageEffects.append(wash, rain);
-
-  const clearAtmosphere = () => {
-    rain.pause();
-    if (genreStageEffects.contains(rain)) genreStageEffects.textContent = "";
-  };
-  rain.addEventListener("ended", clearAtmosphere, { once: true });
-  const playback = rain.play();
-  if (playback?.catch) playback.catch(clearAtmosphere);
-  setTimeout(clearAtmosphere, 1750);
+  if (effect === "thriller") return;
+  const scene = document.createElement("div");
+  scene.className = `genre-stage-effect genre-stage-${effect}`;
+  if (effect === "horror") {
+    const shadow = document.createElement("img");
+    shadow.src = "assets/genre-horror-shadow.png";
+    shadow.alt = "";
+    scene.append(shadow);
+  }
+  genreStageEffects.append(scene);
+  setTimeout(() => scene.remove(), 1100);
 }
 
 function sayMascotGenre(effect) {
@@ -355,11 +356,8 @@ function applyGenreFilter() {
   genrePanelOpen = true;
   save();
   render();
-  const effect = state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog";
-  showGenreAtmosphere(effect);
-  playGenreFilterSound(effect);
   animateGenreRemontage(before, after, beforeOdds, afterOdds);
-  sayMascotGenre(effect);
+  sayMascotGenre(state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog");
 }
 
 function pluralizeCassettes(count) {
@@ -966,11 +964,13 @@ function animateStakeRemontage(movies, beforeOdds, afterOdds) {
 function playGenreFilterSound(effect) {
   if (!soundEnabled) return;
   if (effect === "action") {
-    playTone(84, .12, 0, "triangle", .018);
+    playTone(168, .055, 0, "square", .035);
+    playNoise(.035, .04, .025, 2200, "highpass");
     return;
   }
   if (effect === "horror") {
-    playNoise(.18, 0, .008, 580, "lowpass");
+    playNoise(.1, 0, .018, 1200, "bandpass");
+    playPitchSlide(188, 126, .14, .01, "triangle", .024);
     return;
   }
   if (effect === "drama") {
@@ -1192,6 +1192,8 @@ genreAllButton.addEventListener("click", () => {
   if (state.spinning) return;
   genreDraft = [];
   renderGenreAuction();
+  runGenreChipEffect(genreAllButton, "catalog");
+  playGenreFilterSound("catalog");
 });
 
 genreApplyButton.addEventListener("click", applyGenreFilter);
@@ -1296,7 +1298,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
   });
 });
 
-const customButtonSoundSelector = "#spinButton, #soundButton, #genreApplyButton, .stake-button";
+const customButtonSoundSelector = "#spinButton, #soundButton, #genreAllButton, #genreApplyButton, .genre-chip, .stake-button";
 
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
