@@ -73,6 +73,15 @@ test("movie list exposes exact stake controls and the spin uses weighted odds", 
   assert.match(css, /\.auction-divider/);
 });
 
+test("wheel uses a low-key VHS transport sound instead of rapid bright ticks", () => {
+  const app = fs.readFileSync("app.js", "utf8");
+
+  assert.match(app, /function playWheelMotor/);
+  assert.match(app, /function playSoftCassetteEngage/);
+  assert.match(app, /progress < \.76/);
+  assert.match(app, /minimumGap = 170/);
+});
+
 test("horror premiere uses cassette horror naming and raster blood overlay", () => {
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");

@@ -101,6 +101,7 @@ const genreApplyButton = document.querySelector("#genreApplyButton");
 let audioContext = null;
 let soundEnabled = loadJson("kinoauk.sound.v1", true);
 let lastTickIndex = -1;
+let lastSettlingRollerAt = 0;
 let horrorScream = null;
 let actionGunshots = null;
 let genrePanelOpen = false;
@@ -698,6 +699,7 @@ function spin() {
   state.spinning = true;
   state.winner = null;
   lastTickIndex = -1;
+  lastSettlingRollerAt = 0;
   sayMascot(Math.random() > .45 ? "locked" : "spin");
   render();
   playStartSound();
@@ -857,12 +859,22 @@ function playCapstanThump(startAt = 0) {
   playNoise(.045, startAt + .025, .04, 760, "bandpass");
 }
 
+function playWheelMotor(duration = 4.3) {
+  // A warm transport motor is calmer than one sharp click per wheel sector.
+  playTone(54, duration, 0, "sine", .012);
+  playTone(108, duration * .9, .05, "triangle", .006);
+  playNoise(duration * .82, .08, .004, 520, "lowpass");
+  playNoise(.12, .02, .01, 760, "lowpass");
+}
+
+function playSoftCassetteEngage() {
+  playTone(62, .13, 0, "triangle", .024);
+  playNoise(.08, .015, .012, 680, "lowpass");
+}
+
 function playStartSound() {
-  playTapeClick(0);
-  playButtonClack(.09);
-  playTapeRewind(.14);
-  playTapeHiss(.82, .06, .019);
-  playCapstanThump(.38);
+  playSoftCassetteEngage();
+  playWheelMotor();
 }
 
 function playWinSound() {
@@ -875,11 +887,10 @@ function playWinSound() {
 }
 
 function playTickSound(progress) {
-  const slow = Math.max(0, progress - .68);
-  const thump = .018 + slow * .04;
-  playNoise(.012, 0, .035 + slow * .035, 1800, "bandpass");
-  playTone(92 - slow * 28, .024 + slow * .035, .004, "square", thump);
-  if (Math.random() > .58) playTapeHiss(.03, .012, .008);
+  if (progress < .76) return;
+  const slow = (progress - .76) / .24;
+  playTone(58 - slow * 11, .055 + slow * .045, 0, "sine", .012 + slow * .01);
+  playNoise(.016, .004, .008 + slow * .006, 480, "lowpass");
 }
 
 function tickWheel(rotation, progress, movies = auctionMovies(), odds = calculateMovieOdds(movies, state.stakes)) {
@@ -888,6 +899,10 @@ function tickWheel(rotation, progress, movies = auctionMovies(), odds = calculat
   const key = movieKey(movie);
   if (key === lastTickIndex) return;
   lastTickIndex = key;
+  const now = performance.now();
+  const minimumGap = 170 + Math.max(0, .9 - progress) * 260;
+  if (now - lastSettlingRollerAt < minimumGap) return;
+  lastSettlingRollerAt = now;
   playTickSound(progress);
 }
 
