@@ -56,6 +56,20 @@ test("app uses genre premiere effects and real scream fallback path", () => {
   assert.match(app, /playSyntheticScream/);
 });
 
+test("movie list exposes exact stake controls and the spin uses weighted odds", () => {
+  const html = fs.readFileSync("index.html", "utf8");
+  const app = fs.readFileSync("app.js", "utf8");
+  const css = fs.readFileSync("styles.css", "utf8");
+
+  assert.match(html, /stake-max/);
+  assert.match(html, /stake-olya/);
+  assert.match(app, /calculateMovieOdds/);
+  assert.match(app, /pickMovieByOdds/);
+  assert.match(app, /state\.stakes = \{ max: "", olya: "" \}/);
+  assert.match(css, /\.movie-chance/);
+  assert.match(css, /\.stake-button/);
+});
+
 test("horror premiere uses cassette horror naming and raster blood overlay", () => {
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");

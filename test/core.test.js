@@ -3,6 +3,8 @@ const test = require("node:test");
 
 const {
   isHorrorMovie,
+  calculateMovieOdds,
+  canUseStakeOdds,
   filterMoviesByGenres,
   genreCounts,
   mergeMovieList,
@@ -10,7 +12,9 @@ const {
   movieAtPointerFromRotation,
   movieGenres,
   movieMetaLabel,
+  movieKey,
   normalizeMovie,
+  pickMovieByOdds,
   winnerEffectType
 } = require("../core");
 
@@ -83,6 +87,38 @@ test("genre helpers support multiple genres and preserve the full catalog by def
     { genre: "триллер", count: 1 },
     { genre: "ужасы", count: 1 }
   ]);
+});
+
+test("stakes reserve exact odds before the rest of the auction is distributed", () => {
+  const movies = [{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }];
+  const odds = calculateMovieOdds(movies, {
+    max: movieKey(movies[0]),
+    olya: movieKey(movies[1])
+  });
+
+  assert.deepEqual(odds.map((entry) => entry.chance), [.1, .1, .4, .4]);
+  assert.equal(pickMovieByOdds(odds, () => .05).title, "A");
+  assert.equal(pickMovieByOdds(odds, () => .15).title, "B");
+  assert.equal(pickMovieByOdds(odds, () => .55).title, "C");
+
+  const shared = calculateMovieOdds(movies, {
+    max: movieKey(movies[0]),
+    olya: movieKey(movies[0])
+  });
+  assert.equal(shared[0].chance, .2);
+  assert.ok(Math.abs(shared.slice(1).reduce((total, entry) => total + entry.chance, 0) - .8) < 1e-10);
+});
+
+test("two distinct stakes require at least one regular auction candidate", () => {
+  const movies = [{ title: "A" }, { title: "B" }];
+  assert.equal(canUseStakeOdds(movies, {
+    max: movieKey(movies[0]),
+    olya: movieKey(movies[1])
+  }), false);
+  assert.equal(canUseStakeOdds(movies, {
+    max: movieKey(movies[0]),
+    olya: movieKey(movies[0])
+  }), true);
 });
 
 test("winnerEffectType maps key genres to premiere effects", () => {

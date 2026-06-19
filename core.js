@@ -88,6 +88,53 @@
       .sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre, "ru"));
   }
 
+  function calculateMovieOdds(movies, stakes = {}, stakeShare = .1) {
+    const list = Array.isArray(movies) ? movies : [];
+    const requested = [stakes.max, stakes.olya]
+      .map((key) => String(key || ""))
+      .filter((key) => list.some((movie) => movieKey(movie) === key));
+    const reserved = new Map();
+
+    for (const key of requested) {
+      reserved.set(key, (reserved.get(key) || 0) + 1);
+    }
+
+    const unreserved = list.filter((movie) => !reserved.has(movieKey(movie)));
+    if (!canUseStakeOdds(list, stakes)) {
+      return list.map((movie) => ({ movie, chance: 1 / list.length, stakeCount: 0 }));
+    }
+
+    const reservedTotal = requested.length * stakeShare;
+    const remainingShare = unreserved.length ? (1 - reservedTotal) / unreserved.length : 0;
+    return list.map((movie) => {
+      const stakeCount = reserved.get(movieKey(movie)) || 0;
+      return {
+        movie,
+        chance: stakeCount ? stakeCount * stakeShare : remainingShare,
+        stakeCount
+      };
+    });
+  }
+
+  function canUseStakeOdds(movies, stakes = {}) {
+    const list = Array.isArray(movies) ? movies : [];
+    const activeKeys = new Set([stakes.max, stakes.olya]
+      .map((key) => String(key || ""))
+      .filter((key) => list.some((movie) => movieKey(movie) === key)));
+    return activeKeys.size < list.length;
+  }
+
+  function pickMovieByOdds(odds, random = Math.random) {
+    if (!odds?.length) return null;
+    const roll = Math.min(.999999999, Math.max(0, Number(random()) || 0));
+    let boundary = 0;
+    for (const entry of odds) {
+      boundary += entry.chance;
+      if (roll < boundary) return entry.movie;
+    }
+    return odds[odds.length - 1].movie;
+  }
+
   function isHorrorMovie(movie) {
     return winnerEffectType(movie) === "horror";
   }
@@ -134,6 +181,8 @@
   }
 
   return {
+    canUseStakeOdds,
+    calculateMovieOdds,
     filterMoviesByGenres,
     genreCounts,
     isHorrorMovie,
@@ -142,7 +191,9 @@
     movieGenres,
     movieAtPointerFromRotation,
     movieMetaLabel,
+    movieKey,
     normalizeMovie,
+    pickMovieByOdds,
     winnerEffectType
   };
 });

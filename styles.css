@@ -1104,7 +1104,7 @@ canvas {
 
 .movie-item {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 34px;
+  grid-template-columns: 42px minmax(0, 1fr) 58px 34px;
   align-items: center;
   gap: 8px;
   height: 60px;
@@ -1159,6 +1159,56 @@ canvas {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.movie-chance {
+  display: block;
+  margin-top: 3px;
+  color: #baffee;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.stake-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.stake-button {
+  width: 27px;
+  min-width: 27px;
+  min-height: 29px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 243, 215, .06);
+  color: rgba(255, 243, 215, .52);
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  transition: transform .2s ease, color .2s ease, background-color .2s ease, box-shadow .2s ease;
+}
+
+.stake-max.active {
+  border-color: rgba(84, 224, 189, .88);
+  background: rgba(84, 224, 189, .16);
+  color: #baffee;
+  box-shadow: 0 0 16px rgba(84, 224, 189, .28);
+}
+
+.stake-olya.active {
+  border-color: rgba(255, 79, 154, .88);
+  background: rgba(255, 79, 154, .16);
+  color: #ffd0e3;
+  box-shadow: 0 0 16px rgba(255, 79, 154, .28);
+}
+
+.stake-button.active {
+  transform: translateY(-1px);
 }
 
 .movie-meta {

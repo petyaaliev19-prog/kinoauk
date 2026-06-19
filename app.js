@@ -1,6 +1,7 @@
 const STORAGE_KEY = "kinoauk.movies.v1";
 const HISTORY_KEY = "kinoauk.history.v1";
 const GENRE_FILTER_KEY = "kinoauk.genre-filter.v1";
+const STAKES_KEY = "kinoauk.stakes.v1";
 const FALLBACK_POSTER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 180">
   <defs>
@@ -27,13 +28,17 @@ const FALLBACK_POSTER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 
 const palette = ["#f4c542", "#31c6a7", "#f46f63", "#5aa9e6", "#e08dac", "#8bd17c", "#f39b4a", "#b9a7ff"];
 const {
+  calculateMovieOdds,
+  canUseStakeOdds,
   filterMoviesByGenres,
   genreCounts,
   isHorrorMovie,
   mergeMovieList,
   mod,
   movieAtPointerFromRotation,
+  movieKey,
   movieMetaLabel,
+  pickMovieByOdds,
   winnerEffectType
 } = window.KinoaukCore;
 
@@ -41,6 +46,7 @@ const state = {
   movies: loadJson(STORAGE_KEY, []),
   history: loadJson(HISTORY_KEY, []),
   genreFilter: loadJson(GENRE_FILTER_KEY, []),
+  stakes: loadJson(STAKES_KEY, { max: "", olya: "" }),
   rotation: 0,
   spinning: false,
   winner: null,
@@ -198,6 +204,7 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.movies));
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
   localStorage.setItem(GENRE_FILTER_KEY, JSON.stringify(state.genreFilter));
+  localStorage.setItem(STAKES_KEY, JSON.stringify(state.stakes));
 }
 
 function mergeMovies(nextMovies) {
@@ -234,6 +241,15 @@ function filteredMovies() {
 
 function auctionMovies() {
   return filterMoviesByGenres(state.movies, state.genreFilter);
+}
+
+function auctionOdds() {
+  return calculateMovieOdds(auctionMovies(), state.stakes);
+}
+
+function chanceLabel(chance) {
+  const percent = chance * 100;
+  return `${percent >= 10 ? percent.toFixed(0) : percent.toFixed(1).replace(".", ",")}%`;
 }
 
 function genreLabel(genre) {
@@ -331,6 +347,7 @@ function applyGenreFilter() {
   const before = auctionMovies();
   state.genreFilter = [...genreDraft];
   const after = auctionMovies();
+  if (!canUseStakeOdds(after, state.stakes)) state.stakes = { max: "", olya: "" };
   genrePanelOpen = true;
   save();
   render();
@@ -473,6 +490,10 @@ function renderList() {
     const poster = item.querySelector(".movie-poster");
     const posterSlot = item.querySelector(".movie-poster-slot");
     const remove = item.querySelector(".remove-button");
+    const maxStake = item.querySelector(".stake-max");
+    const olyaStake = item.querySelector(".stake-olya");
+    const odds = auctionOdds();
+    const chance = odds.find((entry) => entry.movie === movie);
 
     link.textContent = "";
     const title = document.createElement("span");
@@ -481,8 +502,12 @@ function renderList() {
     meta.className = "movie-meta";
     title.textContent = movie.title;
     meta.textContent = movieMetaLabel(movie);
+    const chanceMeta = document.createElement("span");
+    chanceMeta.className = "movie-chance";
+    chanceMeta.textContent = chance ? `Шанс ${chanceLabel(chance.chance)}` : "Вне жанрового аукциона";
     link.append(title);
     if (meta.textContent) link.append(meta);
+    link.append(chanceMeta);
     link.href = movie.url || "#";
     poster.hidden = false;
     poster.src = movie.poster || FALLBACK_POSTER;
@@ -493,6 +518,13 @@ function renderList() {
     };
     posterSlot.classList.toggle("empty-poster", !movie.poster);
     remove.disabled = state.spinning;
+    for (const [player, button] of [["max", maxStake], ["olya", olyaStake]]) {
+      const selected = state.stakes[player] === movieKey(movie);
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-pressed", String(selected));
+      button.disabled = state.spinning || !chance;
+      button.addEventListener("click", () => toggleStake(player, movie));
+    }
     if (!movie.url) {
       link.removeAttribute("target");
       link.addEventListener("click", (event) => event.preventDefault());
@@ -501,6 +533,9 @@ function renderList() {
     remove.addEventListener("click", () => {
       if (state.spinning) return;
       state.movies = state.movies.filter((candidate) => candidate !== movie);
+      for (const player of ["max", "olya"]) {
+        if (state.stakes[player] === movieKey(movie)) state.stakes[player] = "";
+      }
       if (state.winner === movie) state.winner = null;
       save();
       render();
@@ -508,6 +543,22 @@ function renderList() {
 
     movieList.append(item);
   }
+}
+
+function toggleStake(player, movie) {
+  if (state.spinning || !auctionMovies().includes(movie)) return;
+  const key = movieKey(movie);
+  const nextStakes = { ...state.stakes, [player]: state.stakes[player] === key ? "" : key };
+  if (!canUseStakeOdds(auctionMovies(), nextStakes)) {
+    setMascotSpeech("Для двух разных ставок нужна хотя бы одна обычная кассета в аукционе.", "idle");
+    playTapeClick();
+    return;
+  }
+  state.stakes = nextStakes;
+  save();
+  renderList();
+  playButtonClack();
+  setMascotSpeech(state.stakes[player] ? `${player === "max" ? "Максим" : "Оля"} поставил(а) 10% на ${movie.title}.` : "Ставка снята. Аукцион снова дышит свободнее.", "idle");
 }
 
 function updateWinner() {
@@ -626,7 +677,10 @@ function spin() {
   render();
   playStartSound();
 
-  const winnerIndex = Math.floor(Math.random() * movies.length);
+  const odds = calculateMovieOdds(movies, state.stakes);
+  const stakesForSpin = { ...state.stakes };
+  const selectedWinner = pickMovieByOdds(odds, Math.random);
+  const winnerIndex = movies.indexOf(selectedWinner);
   const slice = (Math.PI * 2) / movies.length;
   const targetAtPointer = Math.PI * 1.5;
   const winnerCenter = winnerIndex * slice - Math.PI / 2 + slice / 2;
@@ -650,10 +704,11 @@ function spin() {
 
     state.spinning = false;
     state.rotation = end % (Math.PI * 2);
-    state.winner = movieAtPointer(state.rotation, movies);
+    state.winner = selectedWinner;
     sayMascot("win", state.winner);
-    state.history.unshift({ ...state.winner, wonAt: new Date().toISOString() });
+    state.history.unshift({ ...state.winner, wonAt: new Date().toISOString(), stakes: stakesForSpin });
     state.history = state.history.slice(0, 20);
+    state.stakes = { max: "", olya: "" };
     save();
     render();
     showWinnerPremiere(state.winner);
@@ -1087,6 +1142,7 @@ clearButton.addEventListener("click", () => {
   if (state.spinning) return;
   if (!confirm("Очистить весь список?")) return;
   state.movies = [];
+  state.stakes = { max: "", olya: "" };
   state.winner = null;
   save();
   render();
