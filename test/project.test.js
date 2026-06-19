@@ -82,6 +82,16 @@ test("wheel uses a low-key VHS transport sound instead of rapid bright ticks", (
   assert.match(app, /minimumGap = 170/);
 });
 
+test("all ordinary interface buttons receive one soft delegated sound", () => {
+  const app = fs.readFileSync("app.js", "utf8");
+
+  assert.match(app, /document\.addEventListener\("click"/);
+  assert.match(app, /target\?\.closest\("button"\)/);
+  assert.match(app, /customButtonSoundSelector/);
+  assert.match(app, /playNoise\(\.022, startAt \+ \.006, \.009, 840, "lowpass"\)/);
+  assert.doesNotMatch(app, /playNoise\(\.012, startAt, \.11, 2800, "highpass"\)/);
+});
+
 test("every winner gets a gentle shared VHS cue before genre-specific sound", () => {
   const app = fs.readFileSync("app.js", "utf8");
   const winSound = app.match(/function playWinSound\(\) \{([\s\S]*?)\n\}/)?.[1] || "";

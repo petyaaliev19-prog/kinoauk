@@ -826,9 +826,8 @@ function playNoise(duration, startAt = 0, gainValue = .05, frequency = 900, type
 }
 
 function playTapeClick(startAt = 0) {
-  playNoise(.018, startAt, .16, 3200, "highpass");
-  playTone(72, .045, startAt, "square", .07);
-  playNoise(.026, startAt + .045, .08, 1200, "bandpass");
+  playTone(68, .065, startAt, "triangle", .024);
+  playNoise(.03, startAt + .008, .012, 720, "lowpass");
 }
 
 function playTapeRewind(startAt = 0) {
@@ -850,8 +849,8 @@ function playTapeHiss(duration, startAt = 0, gainValue = .022) {
 }
 
 function playButtonClack(startAt = 0) {
-  playNoise(.012, startAt, .11, 2800, "highpass");
-  playTone(118, .035, startAt + .006, "square", .045);
+  playTone(92, .055, startAt, "triangle", .02);
+  playNoise(.022, startAt + .006, .009, 840, "lowpass");
 }
 
 function playCapstanThump(startAt = 0) {
@@ -1164,7 +1163,6 @@ genreAuctionToggle.addEventListener("click", () => {
   genrePanelOpen = !genrePanelOpen;
   if (genrePanelOpen) genreDraft = [...state.genreFilter];
   renderGenreAuction();
-  if (genrePanelOpen) playTapeClick();
 });
 
 genreAllButton.addEventListener("click", () => {
@@ -1273,9 +1271,17 @@ document.querySelectorAll(".tab").forEach((tab) => {
       genrePanelOpen = true;
       genreDraft = [...state.genreFilter];
       renderGenreAuction();
-      playTapeClick();
     }
   });
+});
+
+const customButtonSoundSelector = "#spinButton, #soundButton, #genreAllButton, #genreApplyButton, .genre-chip, .stake-button";
+
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const button = target?.closest("button");
+  if (!button || button.disabled || button.matches(customButtonSoundSelector)) return;
+  playButtonClack();
 });
 
 importFromHash();
