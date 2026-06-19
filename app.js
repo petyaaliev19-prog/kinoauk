@@ -80,6 +80,7 @@ let audioContext = null;
 let soundEnabled = loadJson("kinoauk.sound.v1", true);
 let lastTickIndex = -1;
 let horrorScream = null;
+let actionGunshots = null;
 
 const mascotLines = {
   idle: [
@@ -691,13 +692,16 @@ function createGenreEffectNodes(effect) {
   }
 
   if (effect === "action") {
-    return Array.from({ length: 14 }, (_, index) => {
+    const crack = document.createElement("span");
+    crack.className = "action-crack-overlay";
+    const tracers = Array.from({ length: 10 }, (_, index) => {
       const bullet = document.createElement("span");
       bullet.className = index % 4 === 0 ? "muzzle-flash" : "bullet-tracer";
       bullet.style.top = `${18 + Math.random() * 64}%`;
       bullet.style.animationDelay = `${Math.random() * .7}s`;
       return bullet;
     });
+    return [crack, ...tracers];
   }
 
   if (effect === "comedy") {
@@ -777,12 +781,22 @@ function playDramaWinSound() {
 }
 
 function playActionWinSound() {
+  if (!soundEnabled) return;
+  actionGunshots ||= new Audio("assets/sounds/action-gunshots.mp3");
+  actionGunshots.currentTime = 0;
+  actionGunshots.volume = .68;
+  const playback = actionGunshots.play();
+  if (playback?.catch) playback.catch(() => playSyntheticActionGunshots());
+
   playCapstanThump(0);
+  playNoise(.28, .42, .04, 4200, "highpass");
+}
+
+function playSyntheticActionGunshots() {
   [0, .12, .2, .38].forEach((startAt, index) => {
     playNoise(.035, startAt, .12, 1800 + index * 500, "bandpass");
     playTone(64, .05, startAt, "square", .055);
   });
-  playNoise(.28, .42, .04, 4200, "highpass");
 }
 
 function playComedyWinSound() {

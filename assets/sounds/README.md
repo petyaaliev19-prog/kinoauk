@@ -17,3 +17,13 @@ Source selected for the asset:
 - License summary: `https://pixabay.com/service/license-summary/`
 
 Pixabay page says the sound effect is free for use under the Pixabay Content License. The local sandbox could not reliably download the binary file automatically because the CDN connection was reset. If the MP3 is added at the path above, horror premieres will play the real scream. If the file is absent or fails to play, the app falls back to a synthesized scream-like WebAudio effect.
+
+## Action gunshots
+
+The action premiere first tries to play this local sound effect:
+
+```text
+assets/sounds/action-gunshots.mp3
+```
+
+Use a short, licensed sound effect with two or three dry gunshots and a brief room tail. The effect should be a recording, not an excerpt from a film or game. If this optional file is absent or cannot be played, the app uses a compact WebAudio fallback while keeping the CRT-crack visual effect.

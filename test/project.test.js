@@ -49,6 +49,19 @@ test("horror premiere uses cassette horror naming and raster blood overlay", () 
   assert.match(docs, /КАССЕТА УЖАСА/);
 });
 
+test("action premiere uses a CRT crack overlay and optional real gunshots", () => {
+  const app = fs.readFileSync("app.js", "utf8");
+  const css = fs.readFileSync("styles.css", "utf8");
+  const soundDocs = fs.readFileSync("assets/sounds/README.md", "utf8");
+
+  assert.match(app, /action-gunshots\.mp3/);
+  assert.match(app, /playSyntheticActionGunshots/);
+  assert.match(css, /assets\/action-crack\.png/);
+  assert.match(css, /\.action-crack-overlay/);
+  assert.equal(fs.existsSync("assets/action-crack.png"), true);
+  assert.match(soundDocs, /Action gunshots/);
+});
+
 test("sound asset documentation records source and license", () => {
   const docs = fs.readFileSync("assets/sounds/README.md", "utf8");
   assert.match(docs, /Loud Female Scream/);
