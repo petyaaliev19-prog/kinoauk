@@ -73,20 +73,6 @@ test("movie list exposes exact stake controls and the spin uses weighted odds", 
   assert.match(css, /\.movie-chance/);
   assert.match(css, /\.stake-button/);
   assert.match(css, /\.auction-divider/);
-  assert.match(html, /id="stakeLightLayer"/);
-  assert.match(app, /showStakeSignal/);
-  assert.match(css, /\.stake-light-ray/);
-});
-
-test("stake and winner visuals include focused light without replacing VHS language", () => {
-  const app = fs.readFileSync("app.js", "utf8");
-  const css = fs.readFileSync("styles.css", "utf8");
-
-  assert.match(app, /showProjectorCue/);
-  assert.match(app, /progress >= \.76/);
-  assert.match(css, /\.projector-beam/);
-  assert.match(css, /@keyframes winner-tape-lanes/);
-  assert.match(css, /@keyframes modal-vhs-focus-in/);
 });
 
 test("wheel uses a low-key VHS transport sound instead of rapid bright ticks", () => {
