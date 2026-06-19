@@ -1,5 +1,6 @@
 const STORAGE_KEY = "kinoauk.movies.v1";
 const HISTORY_KEY = "kinoauk.history.v1";
+const GENRE_FILTER_KEY = "kinoauk.genre-filter.v1";
 const FALLBACK_POSTER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 180">
   <defs>
@@ -26,6 +27,8 @@ const FALLBACK_POSTER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 
 const palette = ["#f4c542", "#31c6a7", "#f46f63", "#5aa9e6", "#e08dac", "#8bd17c", "#f39b4a", "#b9a7ff"];
 const {
+  filterMoviesByGenres,
+  genreCounts,
   isHorrorMovie,
   mergeMovieList,
   mod,
@@ -37,6 +40,7 @@ const {
 const state = {
   movies: loadJson(STORAGE_KEY, []),
   history: loadJson(HISTORY_KEY, []),
+  genreFilter: loadJson(GENRE_FILTER_KEY, []),
   rotation: 0,
   spinning: false,
   winner: null,
@@ -52,6 +56,7 @@ const spinButton = document.querySelector("#spinButton");
 const removeWinnerButton = document.querySelector("#removeWinnerButton");
 const resetWinnerButton = document.querySelector("#resetWinnerButton");
 const movieCount = document.querySelector("#movieCount");
+const emptyWheelLabel = document.querySelector("#emptyWheelLabel");
 const winnerBox = document.querySelector("#winnerBox");
 const winnerLink = document.querySelector("#winnerLink");
 const winnerPoster = document.querySelector("#winnerPoster");
@@ -75,12 +80,23 @@ const winnerModalTitle = document.querySelector("#winnerModalTitle");
 const watchWinnerButton = document.querySelector("#watchWinnerButton");
 const modalRemoveWinnerButton = document.querySelector("#modalRemoveWinnerButton");
 const closeWinnerModalButton = document.querySelector("#closeWinnerModalButton");
+const genreAuctionToggle = document.querySelector("#genreAuctionToggle");
+const genreAuctionPanel = document.querySelector("#genreAuctionPanel");
+const genreAuctionSummary = document.querySelector("#genreAuctionSummary");
+const genreAuctionCount = document.querySelector("#genreAuctionCount");
+const genreAuctionDraft = document.querySelector("#genreAuctionDraft");
+const genreChipList = document.querySelector("#genreChipList");
+const genreAllButton = document.querySelector("#genreAllButton");
+const genreApplyButton = document.querySelector("#genreApplyButton");
 
 let audioContext = null;
 let soundEnabled = loadJson("kinoauk.sound.v1", true);
 let lastTickIndex = -1;
 let horrorScream = null;
 let actionGunshots = null;
+let genrePanelOpen = false;
+let genreDraft = [...state.genreFilter];
+let genreTransition = null;
 
 const mascotLines = {
   idle: [
@@ -142,6 +158,7 @@ function loadJson(key, fallback) {
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.movies));
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
+  localStorage.setItem(GENRE_FILTER_KEY, JSON.stringify(state.genreFilter));
 }
 
 function mergeMovies(nextMovies) {
@@ -176,19 +193,116 @@ function filteredMovies() {
   return state.movies.filter((movie) => movie.title.toLowerCase().includes(query));
 }
 
+function auctionMovies() {
+  return filterMoviesByGenres(state.movies, state.genreFilter);
+}
+
+function genreLabel(genre) {
+  return String(genre || "").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function genreSummary(genres = state.genreFilter) {
+  return genres.length ? genres.map(genreLabel).join(" + ") : "Весь каталог";
+}
+
+function genreEffectType(genre) {
+  const value = String(genre || "").toLowerCase();
+  if (/(ужас|хоррор)/.test(value)) return "horror";
+  if (/(боевик|экшен)/.test(value)) return "action";
+  if (/(драма|мелодрам)/.test(value)) return "drama";
+  if (/(комед|юмор)/.test(value)) return "comedy";
+  if (/(фантаст|фэнтези)/.test(value)) return "sci-fi";
+  if (/(триллер|детектив)/.test(value)) return "thriller";
+  return "catalog";
+}
+
+function renderGenreAuction() {
+  const candidates = auctionMovies();
+  const locked = state.spinning;
+  genreAuctionToggle.disabled = locked;
+  genreAuctionToggle.setAttribute("aria-expanded", String(genrePanelOpen));
+  genreAuctionSummary.textContent = genreSummary();
+  genreAuctionCount.textContent = `${candidates.length} ${pluralizeCassettes(candidates.length)}`;
+  genreAuctionPanel.hidden = !genrePanelOpen;
+
+  if (!genrePanelOpen) return;
+
+  genreAuctionDraft.textContent = genreSummary(genreDraft);
+  genreChipList.textContent = "";
+  for (const { genre, count } of genreCounts(state.movies)) {
+    const chip = document.createElement("button");
+    const selected = genreDraft.includes(genre);
+    chip.type = "button";
+    chip.className = `genre-chip genre-chip-${genreEffectType(genre)}`;
+    chip.dataset.genre = genre;
+    chip.dataset.effect = genreEffectType(genre);
+    chip.setAttribute("aria-pressed", String(selected));
+    chip.disabled = locked;
+    chip.innerHTML = `<span>${genreLabel(genre)}</span><b>${count}</b><i aria-hidden="true"></i>`;
+    chip.addEventListener("click", () => toggleGenreDraft(genre));
+    genreChipList.append(chip);
+  }
+
+  genreAllButton.classList.toggle("active", genreDraft.length === 0);
+  genreAllButton.disabled = locked;
+  genreApplyButton.disabled = locked;
+}
+
+function toggleGenreDraft(genre) {
+  const selected = genreDraft.includes(genre);
+  genreDraft = selected ? genreDraft.filter((item) => item !== genre) : [...genreDraft, genre];
+  renderGenreAuction();
+  const chip = genreChipList.querySelector(`[data-genre="${CSS.escape(genre)}"]`);
+  if (chip) runGenreChipEffect(chip, genreEffectType(genre));
+  playGenreFilterSound(genreEffectType(genre));
+}
+
+function runGenreChipEffect(chip, effect) {
+  chip.classList.remove("genre-chip-effect");
+  void chip.offsetWidth;
+  chip.classList.add("genre-chip-effect", `genre-chip-effect-${effect}`);
+  setTimeout(() => chip.classList.remove("genre-chip-effect", `genre-chip-effect-${effect}`), 520);
+}
+
+function applyGenreFilter() {
+  if (state.spinning) return;
+  const before = auctionMovies();
+  state.genreFilter = [...genreDraft];
+  const after = auctionMovies();
+  genrePanelOpen = false;
+  save();
+  render();
+  animateGenreRemontage(before, after);
+  sayMascot("idle");
+}
+
+function pluralizeCassettes(count) {
+  const value = Math.abs(count) % 100;
+  const last = value % 10;
+  if (value > 10 && value < 20) return "кассет";
+  if (last === 1) return "кассета";
+  if (last > 1 && last < 5) return "кассеты";
+  return "кассет";
+}
+
 function render() {
-  movieCount.textContent = state.movies.length;
-  wheelWrap.classList.toggle("is-empty", state.movies.length === 0);
+  const candidates = auctionMovies();
+  movieCount.textContent = candidates.length;
+  wheelWrap.classList.toggle("is-empty", candidates.length === 0);
+  emptyWheelLabel.textContent = state.movies.length && state.genreFilter.length && !candidates.length
+    ? "В этой кассете нет подходящих жанров"
+    : "Нет фильмов";
   document.body.classList.toggle("dictatorship-active", state.spinning);
   document.body.dataset.vhsOsd = vhsOsdLabel();
   dictatorshipBanner.textContent = state.spinning
     ? "РЕЗУЛЬТАТ ЗАПЕЧАТАН НА VHS. ПЕРЕГОЛОСОВКИ НЕТ."
     : "Результат ещё можно обсуждать. Пока.";
   renderList();
+  renderGenreAuction();
   renderPosterBackdrop();
   drawWheel();
   updateWinner();
-  spinButton.disabled = state.movies.length < 2 || state.spinning;
+  spinButton.disabled = candidates.length < 2 || state.spinning;
   spinButton.textContent = state.spinning ? "Диктатура крутит..." : "Крутить";
   removeWinnerButton.disabled = !state.winner || state.spinning;
   resetWinnerButton.disabled = state.spinning;
@@ -211,7 +325,7 @@ function vhsOsdLabel() {
 
   if (state.spinning) return `REC  SP  ${time}`;
   if (state.winner) return `PLAY SP  ${time}`;
-  return `STOP SP  ${String(state.movies.length).padStart(2, "0")} TAPES`;
+  return `STOP SP  ${String(auctionMovies().length).padStart(2, "0")} TAPES`;
 }
 
 function renderPosterBackdrop() {
@@ -358,18 +472,22 @@ function updateWinner() {
   winnerPoster.alt = state.winner.title;
 }
 
-function drawWheel(rotation = state.rotation) {
+function drawWheel(rotation = state.rotation, options = {}) {
   const width = canvas.width;
   const height = canvas.height;
   const cx = width / 2;
   const cy = height / 2;
   const radius = width * 0.47;
-  const movies = state.movies;
+  const movies = options.movies || auctionMovies();
+  const scale = options.scale ?? 1;
+  const opacity = options.opacity ?? 1;
 
   ctx.clearRect(0, 0, width, height);
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rotation);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha = opacity;
 
   if (!movies.length) {
     ctx.beginPath();
@@ -421,7 +539,8 @@ function truncate(value, max) {
 
 function spin() {
   if (state.spinning) return;
-  if (state.movies.length < 2) {
+  const movies = auctionMovies();
+  if (movies.length < 2) {
     sayMascot("empty");
     playTapeClick();
     return;
@@ -434,8 +553,8 @@ function spin() {
   render();
   playStartSound();
 
-  const winnerIndex = Math.floor(Math.random() * state.movies.length);
-  const slice = (Math.PI * 2) / state.movies.length;
+  const winnerIndex = Math.floor(Math.random() * movies.length);
+  const slice = (Math.PI * 2) / movies.length;
   const targetAtPointer = Math.PI * 1.5;
   const winnerCenter = winnerIndex * slice - Math.PI / 2 + slice / 2;
   const turns = 6 + Math.random() * 4;
@@ -448,8 +567,8 @@ function spin() {
     const progress = Math.min(1, (now - startedAt) / duration);
     const eased = 1 - Math.pow(1 - progress, 4);
     state.rotation = start + (end - start) * eased;
-    tickWheel(state.rotation, progress);
-    drawWheel(state.rotation);
+    tickWheel(state.rotation, progress, movies);
+    drawWheel(state.rotation, { movies });
 
     if (progress < 1) {
       requestAnimationFrame(frame);
@@ -458,7 +577,7 @@ function spin() {
 
     state.spinning = false;
     state.rotation = end % (Math.PI * 2);
-    state.winner = movieAtPointer(state.rotation);
+    state.winner = movieAtPointer(state.rotation, movies);
     sayMascot("win", state.winner);
     state.history.unshift({ ...state.winner, wonAt: new Date().toISOString() });
     state.history = state.history.slice(0, 20);
@@ -470,8 +589,8 @@ function spin() {
   requestAnimationFrame(frame);
 }
 
-function movieAtPointer(rotation) {
-  return movieAtPointerFromRotation(state.movies, rotation);
+function movieAtPointer(rotation, movies = auctionMovies()) {
+  return movieAtPointerFromRotation(movies, rotation);
 }
 
 function getAudioContext() {
@@ -610,13 +729,74 @@ function playTickSound(progress) {
   if (Math.random() > .58) playTapeHiss(.03, .012, .008);
 }
 
-function tickWheel(rotation, progress) {
-  if (!soundEnabled || !state.movies.length) return;
-  const slice = (Math.PI * 2) / state.movies.length;
+function tickWheel(rotation, progress, movies = auctionMovies()) {
+  if (!soundEnabled || !movies.length) return;
+  const slice = (Math.PI * 2) / movies.length;
   const index = Math.floor(mod(-rotation, Math.PI * 2) / slice);
   if (index === lastTickIndex) return;
   lastTickIndex = index;
   playTickSound(progress);
+}
+
+function animateGenreRemontage(before, after) {
+  const startedAt = performance.now();
+  const duration = 760;
+  genreTransition = { before, after };
+  wheelWrap.classList.add("genre-remontage");
+  playTapeRewind(0);
+  playTapeHiss(.54, .08, .014);
+
+  function frame(now) {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const firstHalf = progress < .5;
+    const local = firstHalf ? progress / .5 : (progress - .5) / .5;
+    const eased = firstHalf ? 1 - Math.pow(1 - local, 3) : Math.pow(local, 3);
+    const movies = firstHalf ? before : after;
+    const scale = firstHalf ? 1 - eased * .78 : .22 + eased * .78;
+    const opacity = firstHalf ? 1 - eased : eased;
+    drawWheel(state.rotation, { movies, scale, opacity });
+    movieCount.textContent = Math.round(before.length + (after.length - before.length) * progress);
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    genreTransition = null;
+    wheelWrap.classList.remove("genre-remontage");
+    movieCount.textContent = after.length;
+    drawWheel();
+    playTapeClick();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function playGenreFilterSound(effect) {
+  if (!soundEnabled) return;
+  if (effect === "action") {
+    playTone(168, .055, 0, "square", .035);
+    playNoise(.035, .04, .025, 2200, "highpass");
+    return;
+  }
+  if (effect === "horror") {
+    playNoise(.1, 0, .018, 1200, "bandpass");
+    playPitchSlide(188, 126, .14, .01, "triangle", .024);
+    return;
+  }
+  if (effect === "drama") {
+    playTone(261.63, .18, 0, "sine", .025);
+    return;
+  }
+  if (effect === "comedy") {
+    playPitchSlide(380, 510, .12, 0, "triangle", .03);
+    return;
+  }
+  if (effect === "sci-fi") {
+    playPitchSlide(340, 680, .13, 0, "sine", .024);
+    return;
+  }
+  playButtonClack();
 }
 
 function showWinnerPremiere(movie) {
@@ -811,6 +991,24 @@ searchInput.addEventListener("input", () => {
   state.query = searchInput.value;
   renderList();
 });
+
+genreAuctionToggle.addEventListener("click", () => {
+  if (state.spinning) return;
+  genrePanelOpen = !genrePanelOpen;
+  if (genrePanelOpen) genreDraft = [...state.genreFilter];
+  renderGenreAuction();
+  if (genrePanelOpen) playTapeClick();
+});
+
+genreAllButton.addEventListener("click", () => {
+  if (state.spinning) return;
+  genreDraft = [];
+  renderGenreAuction();
+  runGenreChipEffect(genreAllButton, "catalog");
+  playGenreFilterSound("catalog");
+});
+
+genreApplyButton.addEventListener("click", applyGenreFilter);
 
 clearButton.addEventListener("click", () => {
   if (state.spinning) return;

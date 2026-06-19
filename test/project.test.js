@@ -27,6 +27,20 @@ test("winner premiere modal markup is present", () => {
   }
 });
 
+test("genre auction markup and runtime hooks are present", () => {
+  const html = fs.readFileSync("index.html", "utf8");
+  const app = fs.readFileSync("app.js", "utf8");
+  const css = fs.readFileSync("styles.css", "utf8");
+
+  for (const id of ["genreAuctionToggle", "genreAuctionPanel", "genreChipList", "genreAllButton", "genreApplyButton"]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.match(app, /filterMoviesByGenres/);
+  assert.match(app, /animateGenreRemontage/);
+  assert.match(css, /\.genre-chip-effect-action/);
+  assert.match(css, /\.genre-chip-effect-horror/);
+});
+
 test("app uses genre premiere effects and real scream fallback path", () => {
   const app = fs.readFileSync("app.js", "utf8");
   assert.match(app, /winnerEffectType/);

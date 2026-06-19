@@ -60,6 +60,34 @@
     return [movie?.year, movie?.genre].filter(Boolean).join(" · ");
   }
 
+  function movieGenres(movie) {
+    const value = movie?.genre || movie?.genres || "";
+    const values = Array.isArray(value) ? value : [value];
+    return [...new Set(values
+      .flatMap((item) => String(item || "").toLowerCase().split(/[,/|;]/))
+      .map((item) => item.trim())
+      .filter(Boolean))];
+  }
+
+  function filterMoviesByGenres(movies, selectedGenres) {
+    const selected = new Set((selectedGenres || []).map((genre) => String(genre || "").trim().toLowerCase()).filter(Boolean));
+    const list = Array.isArray(movies) ? movies : [];
+    if (!selected.size) return [...list];
+    return list.filter((movie) => movieGenres(movie).some((genre) => selected.has(genre)));
+  }
+
+  function genreCounts(movies) {
+    const counts = new Map();
+    for (const movie of movies || []) {
+      for (const genre of movieGenres(movie)) {
+        counts.set(genre, (counts.get(genre) || 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .map(([genre, count]) => ({ genre, count }))
+      .sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre, "ru"));
+  }
+
   function isHorrorMovie(movie) {
     return winnerEffectType(movie) === "horror";
   }
@@ -106,9 +134,12 @@
   }
 
   return {
+    filterMoviesByGenres,
+    genreCounts,
     isHorrorMovie,
     mergeMovieList,
     mod,
+    movieGenres,
     movieAtPointerFromRotation,
     movieMetaLabel,
     normalizeMovie,

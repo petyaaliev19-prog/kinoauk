@@ -249,11 +249,325 @@ body.dictatorship-active .dictatorship-banner {
   color: var(--danger);
 }
 
+.genre-auction {
+  position: relative;
+  z-index: 5;
+  margin-top: 14px;
+}
+
+.genre-auction-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-color: rgba(255, 231, 93, .38);
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgba(255, 231, 93, .10), rgba(84, 224, 189, .08) 52%, rgba(255, 79, 154, .09)),
+    rgba(17, 16, 14, .82);
+  color: var(--text);
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(255, 243, 215, .05), 0 10px 24px rgba(0, 0, 0, .18);
+}
+
+.genre-auction-toggle::after {
+  content: "⌄";
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  margin-left: 12px;
+  color: #ffe75d;
+  font-size: 20px;
+  transition: transform .28s ease;
+}
+
+.genre-auction-toggle[aria-expanded="true"]::after {
+  transform: rotate(180deg);
+}
+
+.genre-auction-kicker,
+.genre-auction-count {
+  color: var(--muted);
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.genre-auction-toggle strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 16px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genre-auction-count {
+  align-self: end;
+  grid-row: 2;
+  grid-column: 2;
+  padding-right: 24px;
+  letter-spacing: .02em;
+}
+
+.genre-auction-panel {
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid rgba(255, 231, 93, .34);
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .022) 0 1px, transparent 1px 5px),
+    rgba(16, 15, 13, .96);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .32), inset 0 0 30px rgba(255, 184, 74, .05);
+}
+
+.genre-auction-heading,
+.genre-auction-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.genre-auction-heading {
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.genre-auction-heading small {
+  overflow: hidden;
+  color: #ffe75d;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genre-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 142px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.genre-chip {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 112px;
+  height: 38px;
+  overflow: hidden;
+  padding: 0 10px 0 12px;
+  border-color: rgba(255, 243, 215, .2);
+  border-radius: 5px;
+  background: rgba(255, 243, 215, .045);
+  color: rgba(255, 243, 215, .78);
+  text-align: left;
+  transition: border-color .22s ease, background-color .22s ease, color .22s ease, transform .22s ease, box-shadow .22s ease;
+}
+
+.genre-chip span,
+.genre-chip b {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+}
+
+.genre-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genre-chip b {
+  min-width: 22px;
+  color: rgba(255, 243, 215, .56);
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  text-align: right;
+}
+
+.genre-chip[aria-pressed="true"] {
+  border-color: rgba(255, 231, 93, .78);
+  background: linear-gradient(100deg, rgba(255, 231, 93, .20), rgba(84, 224, 189, .12));
+  color: #fff8de;
+  box-shadow: 0 0 0 1px rgba(255, 231, 93, .12), 0 8px 20px rgba(255, 184, 74, .13);
+}
+
+.genre-chip[aria-pressed="true"] b {
+  color: #ffe75d;
+}
+
+.genre-chip i {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.genre-chip-effect {
+  animation: genre-chip-press .42s cubic-bezier(.18, .94, .24, 1) both;
+}
+
+.genre-chip-effect-action i::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255, 231, 93, .94);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(255, 138, 43, .12), 0 0 15px rgba(255, 184, 74, .65);
+  transform: translate(-50%, -50%) scale(.3);
+  animation: filter-action-lock .42s cubic-bezier(.14, .9, .2, 1) forwards;
+}
+
+.genre-chip-effect-action i::after {
+  content: "";
+  position: absolute;
+  inset: 50% 8px auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ffe75d 24%, #ff8a2b 76%, transparent);
+  box-shadow: 0 -7px 0 rgba(255, 231, 93, .46), 0 7px 0 rgba(255, 231, 93, .46);
+  opacity: 0;
+  transform: translateY(-50%) scaleX(.25);
+  animation: filter-action-scan .42s ease-out forwards;
+}
+
+.genre-chip-effect-horror i {
+  background: linear-gradient(90deg, transparent 0 42%, rgba(255, 47, 47, .42) 48%, transparent 58%);
+  mix-blend-mode: screen;
+  animation: filter-horror-track .46s steps(3, end) forwards;
+}
+
+.genre-chip-effect-drama i::before {
+  content: "";
+  position: absolute;
+  inset: -20px 12px;
+  background: repeating-linear-gradient(105deg, transparent 0 12px, rgba(172, 211, 255, .72) 13px 14px, transparent 15px 24px);
+  opacity: 0;
+  transform: translateY(-24px);
+  animation: filter-drama-rain .5s ease-out forwards;
+}
+
+.genre-chip-effect-comedy i::after {
+  content: "HA!";
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+  color: #ffe75d;
+  font-family: "Courier New", monospace;
+  font-size: 15px;
+  font-weight: 900;
+  opacity: 0;
+  text-shadow: 2px 1px 0 rgba(255, 79, 154, .7);
+  transform: rotate(-10deg) scale(.45);
+  animation: filter-comedy-pop .46s cubic-bezier(.2, 1.3, .34, 1) forwards;
+}
+
+.genre-chip-effect-sci-fi i::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 18px;
+  background: linear-gradient(90deg, transparent, rgba(84, 224, 189, .82), transparent);
+  box-shadow: 0 0 18px rgba(84, 224, 189, .56);
+  opacity: 0;
+  transform: translateX(-32px);
+  animation: filter-sci-scan .44s ease-out forwards;
+}
+
+.genre-chip-effect-thriller i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent 0 32%, rgba(12, 60, 54, .46) 78%);
+  opacity: 0;
+  animation: filter-thriller-focus .42s ease-out forwards;
+}
+
+.genre-auction-actions {
+  margin-top: 14px;
+}
+
+.genre-auction-actions button {
+  min-height: 36px;
+  padding: 0 13px;
+}
+
+.genre-auction-actions .active {
+  border-color: rgba(84, 224, 189, .72);
+  color: #baffee;
+}
+
+.wheel-wrap.genre-remontage canvas {
+  filter: drop-shadow(0 28px 45px rgba(0, 0, 0, .38)) saturate(1.18);
+}
+
+@keyframes genre-chip-press {
+  0% { transform: scale(1); }
+  28% { transform: scale(.94); }
+  100% { transform: scale(1); }
+}
+
+@keyframes filter-action-lock {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.25) rotate(-45deg); }
+  48% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.6) rotate(0); }
+}
+
+@keyframes filter-action-scan {
+  0% { opacity: 0; transform: translateY(-50%) scaleX(.2); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-50%) scaleX(1.1); }
+}
+
+@keyframes filter-horror-track {
+  0% { opacity: 0; transform: translateX(-40%); }
+  38% { opacity: .9; }
+  100% { opacity: 0; transform: translateX(42%); }
+}
+
+@keyframes filter-drama-rain {
+  0% { opacity: 0; transform: translateY(-28px); }
+  36% { opacity: .75; }
+  100% { opacity: 0; transform: translateY(42px); }
+}
+
+@keyframes filter-comedy-pop {
+  0% { opacity: 0; transform: rotate(-10deg) scale(.45); }
+  38% { opacity: 1; transform: rotate(-10deg) scale(1.16); }
+  100% { opacity: 0; transform: rotate(-10deg) scale(1); }
+}
+
+@keyframes filter-sci-scan {
+  0% { opacity: 0; transform: translateX(-32px); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(118px); }
+}
+
+@keyframes filter-thriller-focus {
+  0% { opacity: 0; transform: scale(.78); }
+  45% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+
 .wheel-wrap {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(64vh, 100%);
+  width: min(58vh, 100%);
   max-width: 760px;
   aspect-ratio: 1;
   margin: 16px auto;

@@ -46,6 +46,25 @@
           </div>
         </div>
 
+        <section class="genre-auction" id="genreAuction" aria-label="Жанровый аукцион">
+          <button class="genre-auction-toggle" id="genreAuctionToggle" type="button" aria-expanded="false">
+            <span class="genre-auction-kicker">Жанровый аукцион</span>
+            <strong id="genreAuctionSummary">Весь каталог</strong>
+            <span class="genre-auction-count" id="genreAuctionCount">0 кассет</span>
+          </button>
+          <div class="genre-auction-panel" id="genreAuctionPanel" hidden>
+            <div class="genre-auction-heading">
+              <span>Настроить сегодняшний прокат</span>
+              <small id="genreAuctionDraft">Весь каталог</small>
+            </div>
+            <div class="genre-chip-list" id="genreChipList"></div>
+            <div class="genre-auction-actions">
+              <button id="genreAllButton" type="button">Весь каталог</button>
+              <button class="primary" id="genreApplyButton" type="button">Применить</button>
+            </div>
+          </div>
+        </section>
+
         <div class="wheel-wrap">
           <div class="pointer" aria-hidden="true"></div>
           <canvas id="wheelCanvas" width="760" height="760" aria-label="Колесо вариантов"></canvas>
@@ -53,7 +72,7 @@
             <span id="movieCount">0</span>
             <small>вариантов</small>
           </div>
-          <div class="empty-wheel-label" aria-hidden="true">&#1053;&#1077;&#1090; &#1092;&#1080;&#1083;&#1100;&#1084;&#1086;&#1074;</div>
+          <div class="empty-wheel-label" id="emptyWheelLabel" aria-hidden="true">Нет фильмов</div>
         </div>
 
         <div class="controls">
