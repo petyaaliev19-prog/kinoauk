@@ -758,6 +758,42 @@ canvas {
   filter: drop-shadow(0 0 13px rgba(244, 197, 66, .55)) drop-shadow(0 4px 10px rgba(0, 0, 0, .4));
 }
 
+.stake-light-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.stake-light-ray {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 47%;
+  height: 28px;
+  transform: translateY(-50%) rotate(var(--angle));
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--stake-color) 8%, transparent), var(--stake-color) 68%, transparent);
+  filter: blur(2px) drop-shadow(0 0 12px var(--stake-color));
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: stake-light-ray .78s cubic-bezier(.18, .76, .24, 1) forwards;
+}
+
+.stake-sector-glow {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: conic-gradient(from var(--start), var(--stake-color) 0deg, rgba(255, 255, 255, .72) var(--shine), rgba(255, 255, 255, 0) var(--sweep), transparent var(--sweep) 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 53%, #000 55% 100%);
+  mask: radial-gradient(circle, transparent 0 53%, #000 55% 100%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: stake-sector-glow .8s ease-out forwards;
+}
+
 .wheel-center {
   position: absolute;
   display: grid;
@@ -1307,6 +1343,23 @@ canvas {
   overflow: hidden;
 }
 
+.projector-beam {
+  position: fixed;
+  left: 50%;
+  top: -4vh;
+  width: min(74vw, 980px);
+  height: 108vh;
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(84, 224, 189, .035) 26%, rgba(255, 243, 215, .24) 50%, rgba(255, 79, 154, .035) 74%, transparent 100%);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: projector-focus 1.12s cubic-bezier(.2, .72, .26, 1) forwards;
+}
+
 .static-burst {
   position: absolute;
   inset: 0;
@@ -1407,7 +1460,7 @@ canvas {
     repeating-linear-gradient(0deg, rgba(255, 255, 255, .026) 0 1px, transparent 1px 5px),
     #17130f;
   box-shadow: 0 28px 90px rgba(0, 0, 0, .62), 0 0 58px rgba(255, 184, 74, .18);
-  animation: modal-premiere-in .42s cubic-bezier(.16, .9, .28, 1);
+  animation: modal-vhs-focus-in .5s cubic-bezier(.16, .9, .28, 1);
 }
 
 .winner-modal-card::before {
@@ -1421,6 +1474,20 @@ canvas {
     radial-gradient(circle at calc(100% - 50px) 50%, #12100c 0 22px, rgba(255, 243, 215, .34) 23px 26px, transparent 27px),
     linear-gradient(90deg, transparent 0 calc(100% - 248px), rgba(255, 243, 215, .1) calc(100% - 248px) calc(100% - 18px), transparent calc(100% - 18px));
   pointer-events: none;
+}
+
+.winner-modal-card::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: 6;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, transparent 0 13%, rgba(255, 243, 215, .82) 13% 17%, transparent 17% 42%, rgba(84, 224, 189, .62) 42% 46%, transparent 46% 71%, rgba(255, 79, 154, .62) 71% 75%, transparent 75% 100%),
+    repeating-linear-gradient(0deg, rgba(18, 15, 13, .84) 0 3px, rgba(255, 243, 215, .14) 3px 4px, rgba(18, 15, 13, .84) 4px 8px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: winner-tape-lanes .52s steps(5, end) forwards;
 }
 
 .winner-modal-label {
@@ -1460,6 +1527,12 @@ canvas {
   justify-content: center;
   min-width: 0;
   padding: 52px 170px 8px 0;
+  animation: winner-content-focus .5s cubic-bezier(.18, .85, .28, 1) both;
+}
+
+.winner-modal-poster,
+.winner-modal-label {
+  animation: winner-content-focus .5s cubic-bezier(.18, .85, .28, 1) both;
 }
 
 .winner-modal-copy p {
@@ -2227,6 +2300,43 @@ body.dictatorship-active .primary:disabled {
     transform: none;
     filter: none;
   }
+}
+
+@keyframes stake-light-ray {
+  0% { opacity: 0; transform: translateY(-50%) rotate(var(--angle)) scaleX(.05); }
+  42% { opacity: .9; }
+  100% { opacity: 0; transform: translateY(-50%) rotate(var(--angle)) scaleX(1.06); }
+}
+
+@keyframes stake-sector-glow {
+  0% { opacity: 0; transform: scale(.82); }
+  36% { opacity: .74; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+@keyframes projector-focus {
+  0% { opacity: 0; transform: translateX(-50%) scaleX(1.18); }
+  24% { opacity: .9; }
+  72% { opacity: .48; transform: translateX(-50%) scaleX(.52); }
+  100% { opacity: 0; transform: translateX(-50%) scaleX(.28); }
+}
+
+@keyframes modal-vhs-focus-in {
+  0% { opacity: 0; transform: scale(.94); filter: blur(8px) saturate(1.35); }
+  52% { opacity: 1; transform: scale(1.012); filter: blur(1px) saturate(1.12); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0) saturate(1); }
+}
+
+@keyframes winner-tape-lanes {
+  0% { opacity: .94; transform: scaleY(1.45); }
+  56% { opacity: .6; transform: scaleY(.72); }
+  100% { opacity: 0; transform: scaleY(.06); }
+}
+
+@keyframes winner-content-focus {
+  0% { opacity: 0; filter: blur(8px); transform: translateY(8px) scale(.98); }
+  58% { opacity: .74; filter: blur(1px); }
+  100% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
 }
 
 @keyframes blood-overlay-in {

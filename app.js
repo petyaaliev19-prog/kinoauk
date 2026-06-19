@@ -58,6 +58,7 @@ const state = {
 const canvas = document.querySelector("#wheelCanvas");
 const ctx = canvas.getContext("2d");
 const wheelWrap = document.querySelector(".wheel-wrap");
+const stakeLightLayer = document.querySelector("#stakeLightLayer");
 const movieList = document.querySelector("#movieList");
 const template = document.querySelector("#movieItemTemplate");
 const spinButton = document.querySelector("#spinButton");
@@ -102,6 +103,7 @@ let audioContext = null;
 let soundEnabled = loadJson("kinoauk.sound.v1", true);
 let lastTickIndex = -1;
 let lastSettlingRollerAt = 0;
+let projectorCueShown = false;
 let horrorScream = null;
 let actionGunshots = null;
 let genrePanelOpen = false;
@@ -585,6 +587,7 @@ function toggleStake(player, movie) {
   const afterOdds = calculateMovieOdds(candidates, state.stakes);
   save();
   renderList();
+  showStakeSignal(movie, player, afterOdds);
   animateStakeRemontage(candidates, beforeOdds, afterOdds);
   playButtonClack();
   setMascotSpeech(state.stakes[player] ? `${player === "max" ? "Максим" : "Оля"} добавил(а) 10 пунктов к шансу ${movie.title}.` : "Ставка снята. Аукцион снова дышит свободнее.", "idle");
@@ -689,6 +692,31 @@ function drawWheel(rotation = state.rotation, options = {}) {
   ctx.restore();
 }
 
+function showStakeSignal(movie, player, odds) {
+  const segment = wheelSegments(auctionMovies(), odds).find((candidate) => candidate.movie === movie);
+  if (!segment) return;
+
+  stakeLightLayer.textContent = "";
+  const color = player === "max" ? "#54e0bd" : "#ff4f9a";
+  const centerAngle = state.rotation + segment.start - Math.PI / 2 + segment.angle / 2;
+  const ray = document.createElement("span");
+  const arc = document.createElement("span");
+
+  ray.className = "stake-light-ray";
+  arc.className = "stake-sector-glow";
+  ray.style.setProperty("--angle", `${centerAngle}rad`);
+  ray.style.setProperty("--stake-color", color);
+  arc.style.setProperty("--start", `${(state.rotation + segment.start - Math.PI / 2) * 180 / Math.PI}deg`);
+  arc.style.setProperty("--sweep", `${segment.angle * 180 / Math.PI}deg`);
+  arc.style.setProperty("--shine", `${segment.angle * 180 / Math.PI * .26}deg`);
+  arc.style.setProperty("--stake-color", color);
+  stakeLightLayer.append(ray, arc);
+
+  setTimeout(() => {
+    if (stakeLightLayer.contains(ray)) stakeLightLayer.textContent = "";
+  }, 860);
+}
+
 function truncate(value, max) {
   return value.length > max ? value.slice(0, max - 1) + "…" : value;
 }
@@ -706,6 +734,7 @@ function spin() {
   state.winner = null;
   lastTickIndex = -1;
   lastSettlingRollerAt = 0;
+  projectorCueShown = false;
   sayMascot(Math.random() > .45 ? "locked" : "spin");
   render();
   playStartSound();
@@ -729,6 +758,7 @@ function spin() {
     state.rotation = start + (end - start) * eased;
     tickWheel(state.rotation, progress, movies, odds);
     drawWheel(state.rotation, { movies, odds });
+    if (progress >= .76 && !projectorCueShown) showProjectorCue();
 
     if (progress < 1) {
       requestAnimationFrame(frame);
@@ -748,6 +778,14 @@ function spin() {
   }
 
   requestAnimationFrame(frame);
+}
+
+function showProjectorCue() {
+  projectorCueShown = true;
+  const beam = document.createElement("div");
+  beam.className = "projector-beam";
+  confettiLayer.append(beam);
+  setTimeout(() => beam.remove(), 1250);
 }
 
 function movieAtPointer(rotation, movies = auctionMovies(), odds = calculateMovieOdds(movies, state.stakes)) {
