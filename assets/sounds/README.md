@@ -26,4 +26,6 @@ The action premiere first tries to play this local sound effect:
 assets/sounds/action-gunshots.mp3
 ```
 
-Use a short, licensed sound effect with two or three dry gunshots and a brief room tail. The effect should be a recording, not an excerpt from a film or game. If this optional file is absent or cannot be played, the app uses a compact WebAudio fallback while keeping the CRT-crack visual effect.
+Use a short, licensed sound effect with two or three dry gunshots and a brief room tail. The effect should be a recording, not an excerpt from a film or game. If this optional file is absent or cannot be played, the action premiere keeps only a quiet VHS mechanism sound and does not imitate gunfire.
+
+The current local asset contains two shots and drives the two consecutive glass impacts in the action premiere.

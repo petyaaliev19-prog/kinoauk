@@ -958,22 +958,39 @@ canvas {
   animation: blood-overlay-in 1.35s cubic-bezier(.18, .9, .2, 1) forwards;
 }
 
-.action-crack-overlay {
-  position: absolute;
-  inset: -1px;
-  background: url("assets/action-crack.png") center / cover no-repeat;
-  filter: drop-shadow(0 0 10px rgba(151, 245, 255, .34)) contrast(1.08);
-  opacity: 0;
-  transform: scale(1.03);
-  transform-origin: 66% 50%;
-  animation: action-crack-impact 1.35s cubic-bezier(.12, .84, .2, 1) forwards;
+.action-premiere .winner-modal-effects {
+  z-index: 3;
 }
 
-@keyframes action-crack-impact {
-  0% { opacity: 0; transform: scale(.75); }
-  9% { opacity: .98; transform: scale(1.04); }
-  18% { opacity: .78; transform: scale(.99); }
-  100% { opacity: .72; transform: scale(1); }
+.action-glass-fall {
+  position: absolute;
+  inset: 0;
+  background: url("assets/action-glass-fall.png") center / cover no-repeat;
+  filter: drop-shadow(0 0 8px rgba(167, 246, 255, .28)) contrast(1.06);
+  opacity: 0;
+  transform: translateY(-18px) scale(1.015);
+  transform-origin: 66% 50%;
+  animation: action-glass-fall 1.45s cubic-bezier(.14, .82, .2, 1) forwards;
+}
+
+.action-glass-fall-first {
+  transform-origin: 66% 44%;
+}
+
+.action-glass-fall-second {
+  animation-delay: .28s;
+  transform-origin: 40% 44%;
+}
+
+.action-glass-fall-second {
+  background-position: calc(50% - 25vw) center;
+}
+
+@keyframes action-glass-fall {
+  0% { opacity: 0; transform: translateY(-28px) scale(.9); }
+  10% { opacity: 1; transform: translateY(0) scale(1.01); }
+  38% { opacity: .82; transform: translateY(9px) scale(1); }
+  100% { opacity: 0; transform: translateY(58px) scale(.98); }
 }
 
 .rain-drop {
@@ -984,26 +1001,6 @@ canvas {
   background: linear-gradient(180deg, transparent, rgba(172, 211, 255, .86));
   transform: rotate(18deg);
   animation: rain-fall 1.15s linear infinite;
-}
-
-.bullet-tracer {
-  position: absolute;
-  left: -18vw;
-  width: 28vw;
-  height: 3px;
-  border-radius: 99px;
-  background: linear-gradient(90deg, transparent, #ffe75d, #ff7a2a);
-  box-shadow: 0 0 18px rgba(255, 184, 74, .7);
-  animation: bullet-fly .62s ease-out forwards;
-}
-
-.muzzle-flash {
-  position: absolute;
-  left: 6vw;
-  width: 42px;
-  height: 42px;
-  background: radial-gradient(circle, #fff 0 12%, #ffe75d 13% 34%, #ff5c49 35% 58%, transparent 60%);
-  animation: muzzle-pop .48s steps(2, end) forwards;
 }
 
 .laugh-pop {
@@ -1627,35 +1624,6 @@ body.dictatorship-active .primary:disabled {
   to {
     opacity: 0;
     transform: translateY(var(--fall)) rotate(18deg);
-  }
-}
-
-@keyframes bullet-fly {
-  0% {
-    opacity: 0;
-    transform: translateX(0);
-  }
-
-  12% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateX(135vw);
-  }
-}
-
-@keyframes muzzle-pop {
-  0%,
-  100% {
-    opacity: 0;
-    transform: scale(.6);
-  }
-
-  22% {
-    opacity: 1;
-    transform: scale(1.25);
   }
 }
 

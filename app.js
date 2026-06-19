@@ -660,6 +660,10 @@ function removeWinnerFromModal() {
 function showGenreWinBurst(movie = null, effect = winnerEffectType(movie)) {
   confettiLayer.textContent = "";
   winnerModalEffects.textContent = "";
+  if (effect === "action") {
+    winnerModalEffects.append(...createGenreEffectNodes(effect));
+    return;
+  }
   const burst = document.createElement("div");
   const stamp = document.createElement("div");
   burst.className = `static-burst ${effect}-static-burst`;
@@ -692,16 +696,11 @@ function createGenreEffectNodes(effect) {
   }
 
   if (effect === "action") {
-    const crack = document.createElement("span");
-    crack.className = "action-crack-overlay";
-    const tracers = Array.from({ length: 10 }, (_, index) => {
-      const bullet = document.createElement("span");
-      bullet.className = index % 4 === 0 ? "muzzle-flash" : "bullet-tracer";
-      bullet.style.top = `${18 + Math.random() * 64}%`;
-      bullet.style.animationDelay = `${Math.random() * .7}s`;
-      return bullet;
+    return ["first", "second"].map((shot) => {
+      const glass = document.createElement("span");
+      glass.className = `action-glass-fall action-glass-fall-${shot}`;
+      return glass;
     });
-    return [crack, ...tracers];
   }
 
   if (effect === "comedy") {
@@ -786,17 +785,10 @@ function playActionWinSound() {
   actionGunshots.currentTime = 0;
   actionGunshots.volume = .68;
   const playback = actionGunshots.play();
-  if (playback?.catch) playback.catch(() => playSyntheticActionGunshots());
+  if (playback?.catch) playback.catch(() => {});
 
   playCapstanThump(0);
   playNoise(.28, .42, .04, 4200, "highpass");
-}
-
-function playSyntheticActionGunshots() {
-  [0, .12, .2, .38].forEach((startAt, index) => {
-    playNoise(.035, startAt, .12, 1800 + index * 500, "bandpass");
-    playTone(64, .05, startAt, "square", .055);
-  });
 }
 
 function playComedyWinSound() {

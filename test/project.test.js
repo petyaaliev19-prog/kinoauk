@@ -49,16 +49,24 @@ test("horror premiere uses cassette horror naming and raster blood overlay", () 
   assert.match(docs, /КАССЕТА УЖАСА/);
 });
 
-test("action premiere uses a CRT crack overlay and optional real gunshots", () => {
+test("action premiere uses falling glass and optional real gunshots", () => {
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");
   const soundDocs = fs.readFileSync("assets/sounds/README.md", "utf8");
 
   assert.match(app, /action-gunshots\.mp3/);
-  assert.match(app, /playSyntheticActionGunshots/);
-  assert.match(css, /assets\/action-crack\.png/);
-  assert.match(css, /\.action-crack-overlay/);
-  assert.equal(fs.existsSync("assets/action-crack.png"), true);
+  assert.doesNotMatch(app, /playSyntheticActionGunshots/);
+  assert.match(css, /assets\/action-glass-fall\.png/);
+  assert.match(css, /\.action-glass-fall/);
+  assert.match(app, /\["first", "second"\]/);
+  assert.match(app, /action-glass-fall-\$\{shot\}/);
+  assert.match(css, /\.action-glass-fall-first/);
+  assert.match(css, /\.action-glass-fall-second/);
+  assert.match(css, /animation-delay: \.28s/);
+  assert.doesNotMatch(css, /\.bullet-tracer/);
+  assert.doesNotMatch(css, /\.muzzle-flash/);
+  assert.equal(fs.existsSync("assets/action-glass-fall.png"), true);
+  assert.equal(fs.existsSync("assets/sounds/action-gunshots.mp3"), true);
   assert.match(soundDocs, /Action gunshots/);
 });
 
