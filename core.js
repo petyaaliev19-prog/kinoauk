@@ -112,28 +112,31 @@
     }
 
     const unreserved = list.filter((movie) => !reserved.has(movieKey(movie)));
-    if (!canUseStakeOdds(list, stakes)) {
+    if (!canUseStakeOdds(list, stakes, stakeShare)) {
       return list.map((movie) => ({ movie, chance: 1 / list.length, stakeCount: 0 }));
     }
 
-    const reservedTotal = requested.length * stakeShare;
-    const remainingShare = unreserved.length ? (1 - reservedTotal) / unreserved.length : 0;
+    const baseChance = 1 / list.length;
+    const boostedTotal = reserved.size * baseChance + requested.length * stakeShare;
+    const remainingShare = unreserved.length ? (1 - boostedTotal) / unreserved.length : 0;
     return list.map((movie) => {
       const stakeCount = reserved.get(movieKey(movie)) || 0;
       return {
         movie,
-        chance: stakeCount ? stakeCount * stakeShare : remainingShare,
+        chance: stakeCount ? baseChance + stakeCount * stakeShare : remainingShare,
         stakeCount
       };
     });
   }
 
-  function canUseStakeOdds(movies, stakes = {}) {
+  function canUseStakeOdds(movies, stakes = {}, stakeShare = .1) {
     const list = Array.isArray(movies) ? movies : [];
-    const activeKeys = new Set([stakes.max, stakes.olya]
+    const requested = [stakes.max, stakes.olya]
       .map((key) => String(key || ""))
-      .filter((key) => list.some((movie) => movieKey(movie) === key)));
-    return activeKeys.size < list.length;
+      .filter((key) => list.some((movie) => movieKey(movie) === key));
+    const activeKeys = new Set(requested);
+    const boostedTotal = activeKeys.size / list.length + requested.length * stakeShare;
+    return Boolean(list.length) && activeKeys.size < list.length && boostedTotal <= 1;
   }
 
   function wheelSegments(movies, odds = []) {

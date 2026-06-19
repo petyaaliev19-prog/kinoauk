@@ -105,29 +105,29 @@ test("wheel sectors use the same exact weighted odds as the selection", () => {
   const odds = calculateMovieOdds(movies, { max: movieKey(movies[0]), olya: movieKey(movies[1]) });
   const segments = wheelSegments(movies, odds);
 
-  assert.ok(Math.abs(segments[0].angle - Math.PI * .2) < 1e-10);
-  assert.ok(Math.abs(segments[2].angle - Math.PI * .8) < 1e-10);
+  assert.ok(Math.abs(segments[0].angle - Math.PI * .7) < 1e-10);
+  assert.ok(Math.abs(segments[2].angle - Math.PI * .3) < 1e-10);
   assert.ok(Math.abs(segments.at(-1).end - Math.PI * 2) < 1e-10);
 });
 
-test("stakes reserve exact odds before the rest of the auction is distributed", () => {
+test("stakes add ten percentage points to the base chance before redistributing the rest", () => {
   const movies = [{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }];
   const odds = calculateMovieOdds(movies, {
     max: movieKey(movies[0]),
     olya: movieKey(movies[1])
   });
 
-  assert.deepEqual(odds.map((entry) => entry.chance), [.1, .1, .4, .4]);
+  assert.ok(odds.every((entry, index) => Math.abs(entry.chance - [.35, .35, .15, .15][index]) < 1e-10));
   assert.equal(pickMovieByOdds(odds, () => .05).title, "A");
-  assert.equal(pickMovieByOdds(odds, () => .15).title, "B");
-  assert.equal(pickMovieByOdds(odds, () => .55).title, "C");
+  assert.equal(pickMovieByOdds(odds, () => .4).title, "B");
+  assert.equal(pickMovieByOdds(odds, () => .8).title, "C");
 
   const shared = calculateMovieOdds(movies, {
     max: movieKey(movies[0]),
     olya: movieKey(movies[0])
   });
-  assert.equal(shared[0].chance, .2);
-  assert.ok(Math.abs(shared.slice(1).reduce((total, entry) => total + entry.chance, 0) - .8) < 1e-10);
+  assert.equal(shared[0].chance, .45);
+  assert.ok(Math.abs(shared.slice(1).reduce((total, entry) => total + entry.chance, 0) - .55) < 1e-10);
 });
 
 test("two distinct stakes require at least one regular auction candidate", () => {

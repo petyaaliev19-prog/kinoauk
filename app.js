@@ -348,13 +348,15 @@ function sayMascotGenre(effect) {
 function applyGenreFilter() {
   if (state.spinning) return;
   const before = auctionMovies();
+  const beforeOdds = auctionOdds();
   state.genreFilter = [...genreDraft];
   const after = auctionMovies();
   if (!canUseStakeOdds(after, state.stakes)) state.stakes = { max: "", olya: "" };
+  const afterOdds = auctionOdds();
   genrePanelOpen = true;
   save();
   render();
-  animateGenreRemontage(before, after);
+  animateGenreRemontage(before, after, beforeOdds, afterOdds);
   sayMascotGenre(state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog");
 }
 
@@ -569,19 +571,23 @@ function renderList() {
 }
 
 function toggleStake(player, movie) {
-  if (state.spinning || !auctionMovies().includes(movie)) return;
+  const candidates = auctionMovies();
+  if (state.spinning || !candidates.includes(movie)) return;
+  const beforeOdds = calculateMovieOdds(candidates, state.stakes);
   const key = movieKey(movie);
   const nextStakes = { ...state.stakes, [player]: state.stakes[player] === key ? "" : key };
-  if (!canUseStakeOdds(auctionMovies(), nextStakes)) {
-    setMascotSpeech("Для двух разных ставок нужна хотя бы одна обычная кассета в аукционе.", "idle");
+  if (!canUseStakeOdds(candidates, nextStakes)) {
+    setMascotSpeech("С этими ставками для остальных кассет не останется честного шанса.", "idle");
     playTapeClick();
     return;
   }
   state.stakes = nextStakes;
+  const afterOdds = calculateMovieOdds(candidates, state.stakes);
   save();
   renderList();
+  animateStakeRemontage(candidates, beforeOdds, afterOdds);
   playButtonClack();
-  setMascotSpeech(state.stakes[player] ? `${player === "max" ? "Максим" : "Оля"} поставил(а) 10% на ${movie.title}.` : "Ставка снята. Аукцион снова дышит свободнее.", "idle");
+  setMascotSpeech(state.stakes[player] ? `${player === "max" ? "Максим" : "Оля"} добавил(а) 10 пунктов к шансу ${movie.title}.` : "Ставка снята. Аукцион снова дышит свободнее.", "idle");
 }
 
 function updateWinner() {
@@ -904,13 +910,17 @@ function tickWheel(rotation, progress, movies = auctionMovies(), odds = calculat
   playTickSound(progress);
 }
 
-function animateGenreRemontage(before, after) {
+function playSoftRemontage() {
+  playTone(78, .18, 0, "triangle", .014);
+  playNoise(.24, .035, .006, 540, "lowpass");
+}
+
+function animateWheelRemontage(before, after, beforeOdds, afterOdds) {
   const startedAt = performance.now();
-  const duration = 760;
+  const duration = 680;
   genreTransition = { before, after };
   wheelWrap.classList.add("genre-remontage");
-  playTapeRewind(0);
-  playTapeHiss(.54, .08, .014);
+  playSoftRemontage();
 
   function frame(now) {
     const progress = Math.min(1, (now - startedAt) / duration);
@@ -920,7 +930,12 @@ function animateGenreRemontage(before, after) {
     const movies = firstHalf ? before : after;
     const scale = firstHalf ? 1 - eased * .78 : .22 + eased * .78;
     const opacity = firstHalf ? 1 - eased : eased;
-    drawWheel(state.rotation, { movies, scale, opacity });
+    drawWheel(state.rotation, {
+      movies,
+      odds: firstHalf ? beforeOdds : afterOdds,
+      scale,
+      opacity
+    });
     movieCount.textContent = Math.round(before.length + (after.length - before.length) * progress);
 
     if (progress < 1) {
@@ -932,10 +947,18 @@ function animateGenreRemontage(before, after) {
     wheelWrap.classList.remove("genre-remontage");
     movieCount.textContent = after.length;
     drawWheel();
-    playTapeClick();
+    playSoftCassetteEngage();
   }
 
   requestAnimationFrame(frame);
+}
+
+function animateGenreRemontage(before, after, beforeOdds, afterOdds) {
+  animateWheelRemontage(before, after, beforeOdds, afterOdds);
+}
+
+function animateStakeRemontage(movies, beforeOdds, afterOdds) {
+  animateWheelRemontage(movies, movies, beforeOdds, afterOdds);
 }
 
 function playGenreFilterSound(effect) {

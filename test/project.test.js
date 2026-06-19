@@ -67,6 +67,8 @@ test("movie list exposes exact stake controls and the spin uses weighted odds", 
   assert.match(app, /pickMovieByOdds/);
   assert.match(app, /wheelSegments/);
   assert.match(app, /groupMoviesByAuctionEligibility/);
+  assert.match(app, /animateStakeRemontage/);
+  assert.match(app, /playSoftRemontage/);
   assert.match(app, /state\.stakes = \{ max: "", olya: "" \}/);
   assert.match(css, /\.movie-chance/);
   assert.match(css, /\.stake-button/);
