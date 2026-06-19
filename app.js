@@ -69,6 +69,7 @@ const soundButton = document.querySelector("#soundButton");
 const shutdownButton = document.querySelector("#shutdownButton");
 const dictatorshipBanner = document.querySelector("#dictatorshipBanner");
 const confettiLayer = document.querySelector("#confettiLayer");
+const genreStageEffects = document.querySelector("#genreStageEffects");
 const mascotSpeech = document.querySelector("#mascotSpeech");
 const posterBackdrop = document.querySelector("#posterBackdrop");
 const winnerModal = document.querySelector("#winnerModal");
@@ -97,6 +98,7 @@ let actionGunshots = null;
 let genrePanelOpen = false;
 let genreDraft = [...state.genreFilter];
 let genreTransition = null;
+let mascotSpeechTimer = null;
 
 const mascotLines = {
   idle: [
@@ -131,6 +133,43 @@ const mascotLines = {
     "Победителя спрятали в архив. Я ничего не видел.",
     "Сцена удалена. Можно переснять.",
     "Оракул сделал вид, что этого дубля не было."
+  ]
+};
+
+const genreMascotLines = {
+  horror: [
+    "Ужасы отмечены. Плед официально получает статус защитного снаряжения.",
+    "Тревожная кассета выбрана. Свет выключать только по взаимному согласию.",
+    "Я слышал, как плёнка вздохнула. Это, конечно, совершенно нормально."
+  ],
+  action: [
+    "Боевик в прокате. Максим делает серьёзное лицо, Оля оценивает постановку.",
+    "Экшен отмечен. Кассета застегнула ремни безопасности.",
+    "Режим погони включён. Попкорн держать обеими руками."
+  ],
+  drama: [
+    "Драма выбрана. Сегодня разрешается молчать после титров.",
+    "Кассета стала немного тише. Это хороший знак для драмы.",
+    "Драматический вечер отмечен. Салфетки не обязательны, но мудры."
+  ],
+  comedy: [
+    "Комедия отмечена. Критики временно лишены права на серьёзность.",
+    "Смешная кассета в деке. Настроение принято без поправок.",
+    "Комедийный режим включён. Улыбка не является нарушением протокола."
+  ],
+  "sci-fi": [
+    "Фантастика выбрана. Мой зелёный корпус одобряет этот маршрут.",
+    "Сигнал пойман. Будущее доступно на VHS.",
+    "Космическая полка кассет открыта. Время ведёт себя подозрительно."
+  ],
+  thriller: [
+    "Триллер отмечен. Я буду смотреть в коридор вместо вас.",
+    "Напряжённая кассета загружена. Дверь лучше не скрипеть.",
+    "Режим подозрений активирован. Даже попкорн выглядит загадочно."
+  ],
+  catalog: [
+    "Весь каталог снова в кадре. Демократия всё равно не вернулась.",
+    "Все кассеты допущены к аукциону. Судьба довольна ассортиментом."
   ]
 };
 
@@ -254,7 +293,10 @@ function toggleGenreDraft(genre) {
   renderGenreAuction();
   const chip = genreChipList.querySelector(`[data-genre="${CSS.escape(genre)}"]`);
   if (chip) runGenreChipEffect(chip, genreEffectType(genre));
-  playGenreFilterSound(genreEffectType(genre));
+  const effect = genreEffectType(genre);
+  playGenreFilterSound(effect);
+  showGenreStageEffect(effect);
+  sayMascotGenre(effect);
 }
 
 function runGenreChipEffect(chip, effect) {
@@ -264,16 +306,36 @@ function runGenreChipEffect(chip, effect) {
   setTimeout(() => chip.classList.remove("genre-chip-effect", `genre-chip-effect-${effect}`), 520);
 }
 
+function showGenreStageEffect(effect) {
+  genreStageEffects.textContent = "";
+  if (effect === "thriller") return;
+  const scene = document.createElement("div");
+  scene.className = `genre-stage-effect genre-stage-${effect}`;
+  if (effect === "horror") {
+    const shadow = document.createElement("img");
+    shadow.src = "assets/genre-horror-shadow.png";
+    shadow.alt = "";
+    scene.append(shadow);
+  }
+  genreStageEffects.append(scene);
+  setTimeout(() => scene.remove(), 1100);
+}
+
+function sayMascotGenre(effect) {
+  const lines = genreMascotLines[effect] || genreMascotLines.catalog;
+  setMascotSpeech(lines[Math.floor(Math.random() * lines.length)], effect);
+}
+
 function applyGenreFilter() {
   if (state.spinning) return;
   const before = auctionMovies();
   state.genreFilter = [...genreDraft];
   const after = auctionMovies();
-  genrePanelOpen = false;
+  genrePanelOpen = true;
   save();
   render();
   animateGenreRemontage(before, after);
-  sayMascot("idle");
+  sayMascotGenre(state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog");
 }
 
 function pluralizeCassettes(count) {
@@ -344,7 +406,18 @@ function sayMascot(kind, movie = "") {
   const movieTitle = typeof movie === "object" ? movie.title : movie;
   const lines = getMascotLines(kind, movie);
   const line = lines[Math.floor(Math.random() * lines.length)];
-  mascotSpeech.textContent = movieTitle ? `${line} ${movieTitle}.` : line;
+  setMascotSpeech(movieTitle ? `${line} ${movieTitle}.` : line, kind === "win" ? "celebration" : kind);
+}
+
+function setMascotSpeech(text, tone = "idle") {
+  clearTimeout(mascotSpeechTimer);
+  mascotSpeech.className = "mascot-speech";
+  void mascotSpeech.offsetWidth;
+  mascotSpeech.textContent = text;
+  mascotSpeech.classList.add("mascot-speech-pop", `mascot-speech-${tone}`);
+  mascotSpeechTimer = setTimeout(() => {
+    mascotSpeech.className = "mascot-speech";
+  }, 620);
 }
 
 function getMascotLines(kind, movie = "") {
@@ -1101,6 +1174,12 @@ document.querySelectorAll(".tab").forEach((tab) => {
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.classList.toggle("active", panel.id === tab.id.replace("Tab", "Panel"));
     });
+    if (tab.id === "genreTab") {
+      genrePanelOpen = true;
+      genreDraft = [...state.genreFilter];
+      renderGenreAuction();
+      playTapeClick();
+    }
   });
 });
 

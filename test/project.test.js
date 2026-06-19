@@ -32,13 +32,20 @@ test("genre auction markup and runtime hooks are present", () => {
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");
 
-  for (const id of ["genreAuctionToggle", "genreAuctionPanel", "genreChipList", "genreAllButton", "genreApplyButton"]) {
+  for (const id of ["genreTab", "genrePanel", "genreAuctionToggle", "genreAuctionPanel", "genreChipList", "genreAllButton", "genreApplyButton"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(app, /filterMoviesByGenres/);
   assert.match(app, /animateGenreRemontage/);
+  assert.match(app, /showGenreStageEffect/);
+  assert.match(app, /sayMascotGenre/);
+  assert.match(app, /setMascotSpeech/);
   assert.match(css, /\.genre-chip-effect-action/);
   assert.match(css, /\.genre-chip-effect-horror/);
+  assert.match(css, /\.genre-stage-horror/);
+  assert.match(css, /@keyframes mascot-speech-pop/);
+  assert.doesNotMatch(css, /\.genre-stage-thriller/);
+  assert.equal(fs.existsSync("assets/genre-horror-shadow.png"), true);
 });
 
 test("app uses genre premiere effects and real scream fallback path", () => {

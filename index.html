@@ -9,6 +9,7 @@
   <body>
     <div class="poster-backdrop" id="posterBackdrop" aria-hidden="true"></div>
     <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+    <div class="genre-stage-effects" id="genreStageEffects" aria-hidden="true"></div>
     <div class="winner-modal" id="winnerModal" hidden>
       <div class="winner-modal-effects" id="winnerModalEffects" aria-hidden="true"></div>
       <div class="winner-modal-card">
@@ -46,25 +47,6 @@
           </div>
         </div>
 
-        <section class="genre-auction" id="genreAuction" aria-label="Жанровый аукцион">
-          <button class="genre-auction-toggle" id="genreAuctionToggle" type="button" aria-expanded="false">
-            <span class="genre-auction-kicker">Жанровый аукцион</span>
-            <strong id="genreAuctionSummary">Весь каталог</strong>
-            <span class="genre-auction-count" id="genreAuctionCount">0 кассет</span>
-          </button>
-          <div class="genre-auction-panel" id="genreAuctionPanel" hidden>
-            <div class="genre-auction-heading">
-              <span>Настроить сегодняшний прокат</span>
-              <small id="genreAuctionDraft">Весь каталог</small>
-            </div>
-            <div class="genre-chip-list" id="genreChipList"></div>
-            <div class="genre-auction-actions">
-              <button id="genreAllButton" type="button">Весь каталог</button>
-              <button class="primary" id="genreApplyButton" type="button">Применить</button>
-            </div>
-          </div>
-        </section>
-
         <div class="wheel-wrap">
           <div class="pointer" aria-hidden="true"></div>
           <canvas id="wheelCanvas" width="760" height="760" aria-label="Колесо вариантов"></canvas>
@@ -93,6 +75,7 @@
         <div class="tabs" role="tablist" aria-label="Режимы">
           <button class="tab active" id="listTab" type="button" role="tab" aria-selected="true">Список</button>
           <button class="tab" id="importTab" type="button" role="tab" aria-selected="false">Импорт</button>
+          <button class="tab" id="genreTab" type="button" role="tab" aria-selected="false">Жанры</button>
         </div>
 
         <div class="tab-panel active" id="listPanel" role="tabpanel" aria-labelledby="listTab">
@@ -118,6 +101,27 @@
             <p class="import-status" id="refreshKinopoiskStatus"></p>
           </div>
 
+        </div>
+
+        <div class="tab-panel" id="genrePanel" role="tabpanel" aria-labelledby="genreTab">
+          <section class="genre-auction" id="genreAuction" aria-label="Жанровый аукцион">
+            <button class="genre-auction-toggle" id="genreAuctionToggle" type="button" aria-expanded="false">
+              <span class="genre-auction-kicker">Жанровый аукцион</span>
+              <strong id="genreAuctionSummary">Весь каталог</strong>
+              <span class="genre-auction-count" id="genreAuctionCount">0 кассет</span>
+            </button>
+            <div class="genre-auction-panel" id="genreAuctionPanel" hidden>
+              <div class="genre-auction-heading">
+                <span>Настроить сегодняшний прокат</span>
+                <small id="genreAuctionDraft">Весь каталог</small>
+              </div>
+              <div class="genre-chip-list" id="genreChipList"></div>
+              <div class="genre-auction-actions">
+                <button id="genreAllButton" type="button">Весь каталог</button>
+                <button class="primary" id="genreApplyButton" type="button">Применить</button>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </main>
