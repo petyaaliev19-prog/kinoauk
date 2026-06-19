@@ -878,12 +878,11 @@ function playStartSound() {
 }
 
 function playWinSound() {
-  playVhsGlitch(0);
-  playTapeClick(.2);
-  playCapstanThump(.26);
-  playTapeHiss(.62, .18, .018);
-  playPitchSlide(120, 74, .34, .28, "triangle", .038);
-  playNoise(.08, .58, .055, 2600, "bandpass");
+  // The shared win cue should feel like a warm tape settle, not an alarm.
+  playTone(174.61, .34, 0, "sine", .018);
+  playTone(220, .42, .09, "sine", .016);
+  playTone(261.63, .48, .18, "triangle", .012);
+  playNoise(.045, .1, .005, 640, "lowpass");
 }
 
 function playTickSound(progress) {
@@ -1077,6 +1076,7 @@ function effectLabel(effect) {
 }
 
 function playGenreWinSound(movie, effect = winnerEffectType(movie)) {
+  playWinSound();
   if (effect === "horror") {
     playRealHorrorScream();
     playHorrorSoundBed();
@@ -1094,7 +1094,6 @@ function playGenreWinSound(movie, effect = winnerEffectType(movie)) {
     playComedyWinSound();
     return;
   }
-  playWinSound();
 }
 
 function playRealHorrorScream() {

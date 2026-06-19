@@ -82,6 +82,15 @@ test("wheel uses a low-key VHS transport sound instead of rapid bright ticks", (
   assert.match(app, /minimumGap = 170/);
 });
 
+test("every winner gets a gentle shared VHS cue before genre-specific sound", () => {
+  const app = fs.readFileSync("app.js", "utf8");
+  const winSound = app.match(/function playWinSound\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
+
+  assert.match(app, /function playGenreWinSound[\s\S]*?playWinSound\(\)/);
+  assert.match(winSound, /174\.61/);
+  assert.doesNotMatch(winSound, /playVhsGlitch|playTapeClick|playTapeHiss/);
+});
+
 test("horror premiere uses cassette horror naming and raster blood overlay", () => {
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");
