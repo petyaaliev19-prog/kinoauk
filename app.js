@@ -291,12 +291,11 @@ function renderGenreAuction() {
     const chip = document.createElement("button");
     const selected = genreDraft.includes(genre);
     chip.type = "button";
-    chip.className = `genre-chip genre-chip-${genreEffectType(genre)}`;
+    chip.className = "genre-chip";
     chip.dataset.genre = genre;
-    chip.dataset.effect = genreEffectType(genre);
     chip.setAttribute("aria-pressed", String(selected));
     chip.disabled = locked;
-    chip.innerHTML = `<span>${genreLabel(genre)}</span><b>${count}</b><i aria-hidden="true"></i>`;
+    chip.innerHTML = `<span>${genreLabel(genre)}</span><b>${count}</b>`;
     chip.addEventListener("click", () => toggleGenreDraft(genre));
     genreChipList.append(chip);
   }
@@ -310,34 +309,6 @@ function toggleGenreDraft(genre) {
   const selected = genreDraft.includes(genre);
   genreDraft = selected ? genreDraft.filter((item) => item !== genre) : [...genreDraft, genre];
   renderGenreAuction();
-  const chip = genreChipList.querySelector(`[data-genre="${CSS.escape(genre)}"]`);
-  if (chip) runGenreChipEffect(chip, genreEffectType(genre));
-  const effect = genreEffectType(genre);
-  playGenreFilterSound(effect);
-  showGenreStageEffect(effect);
-  sayMascotGenre(effect);
-}
-
-function runGenreChipEffect(chip, effect) {
-  chip.classList.remove("genre-chip-effect");
-  void chip.offsetWidth;
-  chip.classList.add("genre-chip-effect", `genre-chip-effect-${effect}`);
-  setTimeout(() => chip.classList.remove("genre-chip-effect", `genre-chip-effect-${effect}`), 520);
-}
-
-function showGenreStageEffect(effect) {
-  genreStageEffects.textContent = "";
-  if (effect === "thriller") return;
-  const scene = document.createElement("div");
-  scene.className = `genre-stage-effect genre-stage-${effect}`;
-  if (effect === "horror") {
-    const shadow = document.createElement("img");
-    shadow.src = "assets/genre-horror-shadow.png";
-    shadow.alt = "";
-    scene.append(shadow);
-  }
-  genreStageEffects.append(scene);
-  setTimeout(() => scene.remove(), 1100);
 }
 
 function sayMascotGenre(effect) {
@@ -356,8 +327,147 @@ function applyGenreFilter() {
   genrePanelOpen = true;
   save();
   render();
+  const effect = state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog";
+  showGenreAtmosphere(effect);
+  playGenreFilterSound(effect);
   animateGenreRemontage(before, after, beforeOdds, afterOdds);
-  sayMascotGenre(state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog");
+  sayMascotGenre(effect);
+}
+
+function showGenreAtmosphere(effect) {
+  genreStageEffects.textContent = "";
+  if (effect === "catalog") return;
+
+  const canvas = document.createElement("canvas");
+  const atmosphere = canvas.getContext("2d");
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const duration = 1600;
+  const startedAt = performance.now();
+  const particles = Array.from({ length: effect === "drama" ? 105 : 62 }, (_, index) => ({
+    x: (index * 47 % 101) / 100,
+    y: (index * 71 % 97) / 100,
+    speed: .45 + (index % 7) * .11,
+    size: 1 + index % 3
+  }));
+
+  canvas.className = `genre-atmosphere-canvas genre-atmosphere-${effect}`;
+  canvas.width = Math.round(width * pixelRatio);
+  canvas.height = Math.round(height * pixelRatio);
+  atmosphere.scale(pixelRatio, pixelRatio);
+  genreStageEffects.append(canvas);
+
+  function frame(now) {
+    const elapsed = now - startedAt;
+    const progress = Math.min(1, elapsed / duration);
+    const fade = Math.sin(progress * Math.PI);
+    atmosphere.clearRect(0, 0, width, height);
+    atmosphere.globalAlpha = fade;
+
+    if (effect === "drama") drawDramaAtmosphere(atmosphere, particles, elapsed, width, height);
+    else if (effect === "action") drawActionAtmosphere(atmosphere, particles, elapsed, width, height);
+    else if (effect === "horror") drawHorrorAtmosphere(atmosphere, particles, elapsed, width, height);
+    else if (effect === "sci-fi") drawSciFiAtmosphere(atmosphere, elapsed, width, height);
+    else if (effect === "thriller") drawThrillerAtmosphere(atmosphere, elapsed, width, height);
+    else drawComedyAtmosphere(atmosphere, particles, elapsed, width, height);
+
+    if (progress < 1) requestAnimationFrame(frame);
+    else canvas.remove();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function drawDramaAtmosphere(context, drops, elapsed, width, height) {
+  context.fillStyle = "rgba(7, 20, 47, .36)";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "rgba(170, 215, 255, .58)";
+  context.lineWidth = 1;
+  for (const drop of drops) {
+    const y = (drop.y * height + elapsed * drop.speed) % (height + 120) - 60;
+    const x = drop.x * width + Math.sin(elapsed / 480 + drop.y * 8) * 18;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x - 10, y + 48 * drop.speed);
+    context.stroke();
+  }
+}
+
+function drawActionAtmosphere(context, streaks, elapsed, width, height) {
+  context.fillStyle = "rgba(22, 8, 3, .2)";
+  context.fillRect(0, 0, width, height);
+  context.lineCap = "round";
+  for (const streak of streaks) {
+    const x = ((elapsed * streak.speed * .65 + streak.x * width) % (width + 260)) - 130;
+    const y = height * (.12 + streak.y * .76);
+    context.strokeStyle = streak.size === 3 ? "rgba(255, 198, 92, .78)" : "rgba(255, 109, 72, .4)";
+    context.lineWidth = streak.size;
+    context.beginPath();
+    context.moveTo(x - 140 * streak.speed, y + 20 * Math.sin(elapsed / 260 + streak.x * 9));
+    context.lineTo(x + 60, y);
+    context.stroke();
+  }
+}
+
+function drawHorrorAtmosphere(context, waves, elapsed, width, height) {
+  context.fillStyle = "rgba(13, 0, 5, .42)";
+  context.fillRect(0, 0, width, height);
+  context.globalCompositeOperation = "screen";
+  for (const wave of waves.slice(0, 28)) {
+    const y = wave.y * height;
+    const wobble = Math.sin(elapsed / 150 + wave.x * 18) * 22;
+    context.strokeStyle = wave.size === 3 ? "rgba(255, 44, 66, .34)" : "rgba(137, 224, 190, .12)";
+    context.lineWidth = wave.size;
+    context.beginPath();
+    context.moveTo(-40, y + wobble);
+    context.bezierCurveTo(width * .28, y - wobble, width * .7, y + wobble * 1.4, width + 40, y - wobble);
+    context.stroke();
+  }
+  context.globalCompositeOperation = "source-over";
+}
+
+function drawSciFiAtmosphere(context, elapsed, width, height) {
+  context.fillStyle = "rgba(0, 22, 28, .3)";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "rgba(81, 255, 211, .3)";
+  context.lineWidth = 1;
+  const offset = elapsed * .1 % 48;
+  for (let x = -height; x < width + height; x += 48) {
+    context.beginPath();
+    context.moveTo(x + offset, 0);
+    context.lineTo(x - height + offset, height);
+    context.stroke();
+  }
+}
+
+function drawThrillerAtmosphere(context, elapsed, width, height) {
+  const sweep = (elapsed / 1600) * (width + 460) - 230;
+  context.fillStyle = "rgba(1, 18, 22, .34)";
+  context.fillRect(0, 0, width, height);
+  const glow = context.createLinearGradient(sweep - 180, 0, sweep + 180, 0);
+  glow.addColorStop(0, "rgba(0, 0, 0, 0)");
+  glow.addColorStop(.5, "rgba(104, 235, 202, .24)");
+  glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, width, height);
+}
+
+function drawComedyAtmosphere(context, particles, elapsed, width, height) {
+  context.fillStyle = "rgba(50, 25, 8, .2)";
+  context.fillRect(0, 0, width, height);
+  for (const particle of particles.slice(0, 28)) {
+    const x = particle.x * width;
+    const y = particle.y * height + Math.sin(elapsed / 180 + particle.x * 10) * 26;
+    const radius = 16 + particle.size * 10;
+    const glow = context.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, "rgba(255, 232, 100, .34)");
+    glow.addColorStop(1, "rgba(255, 79, 154, 0)");
+    context.fillStyle = glow;
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.fill();
+  }
 }
 
 function pluralizeCassettes(count) {
@@ -964,13 +1074,11 @@ function animateStakeRemontage(movies, beforeOdds, afterOdds) {
 function playGenreFilterSound(effect) {
   if (!soundEnabled) return;
   if (effect === "action") {
-    playTone(168, .055, 0, "square", .035);
-    playNoise(.035, .04, .025, 2200, "highpass");
+    playTone(84, .18, 0, "triangle", .018);
     return;
   }
   if (effect === "horror") {
-    playNoise(.1, 0, .018, 1200, "bandpass");
-    playPitchSlide(188, 126, .14, .01, "triangle", .024);
+    playNoise(.18, 0, .008, 580, "lowpass");
     return;
   }
   if (effect === "drama") {
@@ -1192,8 +1300,6 @@ genreAllButton.addEventListener("click", () => {
   if (state.spinning) return;
   genreDraft = [];
   renderGenreAuction();
-  runGenreChipEffect(genreAllButton, "catalog");
-  playGenreFilterSound("catalog");
 });
 
 genreApplyButton.addEventListener("click", applyGenreFilter);
@@ -1298,7 +1404,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
   });
 });
 
-const customButtonSoundSelector = "#spinButton, #soundButton, #genreAllButton, #genreApplyButton, .genre-chip, .stake-button";
+const customButtonSoundSelector = "#spinButton, #soundButton, #genreApplyButton, .stake-button";
 
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
