@@ -7,6 +7,7 @@ const {
   canUseStakeOdds,
   filterMoviesByGenres,
   genreCounts,
+  groupMoviesByAuctionEligibility,
   mergeMovieList,
   mod,
   movieAtPointerFromRotation,
@@ -15,6 +16,7 @@ const {
   movieKey,
   normalizeMovie,
   pickMovieByOdds,
+  wheelSegments,
   winnerEffectType
 } = require("../core");
 
@@ -87,6 +89,25 @@ test("genre helpers support multiple genres and preserve the full catalog by def
     { genre: "триллер", count: 1 },
     { genre: "ужасы", count: 1 }
   ]);
+});
+
+test("genre auction movies are grouped before tapes outside the active pool", () => {
+  const movies = [{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }];
+  assert.deepEqual(
+    groupMoviesByAuctionEligibility(movies, [movies[1], movies[3]]).map((movie) => movie.title),
+    ["B", "D", "A", "C"]
+  );
+  assert.deepEqual(groupMoviesByAuctionEligibility(movies, movies), movies);
+});
+
+test("wheel sectors use the same exact weighted odds as the selection", () => {
+  const movies = [{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }];
+  const odds = calculateMovieOdds(movies, { max: movieKey(movies[0]), olya: movieKey(movies[1]) });
+  const segments = wheelSegments(movies, odds);
+
+  assert.ok(Math.abs(segments[0].angle - Math.PI * .2) < 1e-10);
+  assert.ok(Math.abs(segments[2].angle - Math.PI * .8) < 1e-10);
+  assert.ok(Math.abs(segments.at(-1).end - Math.PI * 2) < 1e-10);
 });
 
 test("stakes reserve exact odds before the rest of the auction is distributed", () => {

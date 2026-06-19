@@ -125,9 +125,9 @@ textarea {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(340px, 440px);
+  grid-template-columns: minmax(460px, 1fr) minmax(460px, 520px);
   gap: 20px;
-  width: min(1280px, calc(100vw - 32px));
+  width: min(1460px, calc(100vw - 32px));
   height: calc(100vh - 32px);
   margin: 16px auto;
 }
@@ -1092,7 +1092,7 @@ canvas {
 .movie-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -1104,11 +1104,11 @@ canvas {
 
 .movie-item {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 58px 34px;
+  grid-template-columns: 48px minmax(0, 1fr) auto 34px;
   align-items: center;
   gap: 8px;
-  height: 60px;
-  padding: 6px;
+  min-height: 70px;
+  padding: 7px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
@@ -1119,8 +1119,8 @@ canvas {
 .movie-poster-slot {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 48px;
+  width: 48px;
+  height: 56px;
   border-radius: 6px;
   background:
     linear-gradient(135deg, rgba(244, 197, 66, .12), rgba(49, 198, 167, .08)),
@@ -1143,14 +1143,12 @@ canvas {
 }
 
 .movie-title {
-  display: block;
+  display: grid;
+  gap: 5px;
   min-width: 0;
   color: var(--text);
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.15;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .movie-title-main,
@@ -1161,9 +1159,28 @@ canvas {
   text-overflow: ellipsis;
 }
 
+.movie-title-main {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #fffaf0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.movie-details {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .movie-chance {
-  display: block;
-  margin-top: 3px;
+  display: inline-block;
+  flex: 0 0 auto;
   color: #baffee;
   font-family: "Courier New", monospace;
   font-size: 10px;
@@ -1176,7 +1193,7 @@ canvas {
 .stake-controls {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 5px;
 }
 
 .stake-button {
@@ -1212,12 +1229,47 @@ canvas {
 }
 
 .movie-meta {
-  margin-top: 3px;
+  flex: 0 1 auto;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.auction-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin: 4px 0 1px;
+  color: rgba(255, 243, 215, .56);
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.auction-divider::before,
+.auction-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 184, 74, .42));
+}
+
+.auction-divider::after {
+  transform: scaleX(-1);
+}
+
+.movie-item.outside-auction {
+  opacity: .58;
+  filter: saturate(.62);
+}
+
+.movie-item.outside-auction .movie-chance {
+  color: rgba(255, 243, 215, .54);
 }
 
 .remove-button {

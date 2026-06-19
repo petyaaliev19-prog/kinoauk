@@ -76,6 +76,18 @@
     return list.filter((movie) => movieGenres(movie).some((genre) => selected.has(genre)));
   }
 
+  function groupMoviesByAuctionEligibility(movies, auctionMovies) {
+    const auctionKeys = new Set((auctionMovies || []).map(movieKey));
+    const eligible = [];
+    const outside = [];
+
+    for (const movie of movies || []) {
+      (auctionKeys.has(movieKey(movie)) ? eligible : outside).push(movie);
+    }
+
+    return [...eligible, ...outside];
+  }
+
   function genreCounts(movies) {
     const counts = new Map();
     for (const movie of movies || []) {
@@ -122,6 +134,29 @@
       .map((key) => String(key || ""))
       .filter((key) => list.some((movie) => movieKey(movie) === key)));
     return activeKeys.size < list.length;
+  }
+
+  function wheelSegments(movies, odds = []) {
+    const list = Array.isArray(movies) ? movies : [];
+    const chanceByMovie = new Map((odds || []).map((entry) => [movieKey(entry.movie), Number(entry.chance) || 0]));
+    const fallbackChance = list.length ? 1 / list.length : 0;
+    const raw = list.map((movie) => chanceByMovie.get(movieKey(movie)) || fallbackChance);
+    const total = raw.reduce((sum, chance) => sum + chance, 0) || 1;
+    let offset = 0;
+
+    return list.map((movie, index) => {
+      const angle = (raw[index] / total) * Math.PI * 2;
+      const segment = { movie, start: offset, end: offset + angle, angle };
+      offset += angle;
+      return segment;
+    });
+  }
+
+  function movieAtPointerFromSegments(movies, rotation, odds = []) {
+    const segments = wheelSegments(movies, odds);
+    if (!segments.length) return null;
+    const pointerOffset = mod(-rotation, Math.PI * 2);
+    return segments.find((segment) => pointerOffset >= segment.start && pointerOffset < segment.end)?.movie || segments[segments.length - 1].movie;
   }
 
   function pickMovieByOdds(odds, random = Math.random) {
@@ -185,15 +220,18 @@
     calculateMovieOdds,
     filterMoviesByGenres,
     genreCounts,
+    groupMoviesByAuctionEligibility,
     isHorrorMovie,
     mergeMovieList,
     mod,
     movieGenres,
     movieAtPointerFromRotation,
+    movieAtPointerFromSegments,
     movieMetaLabel,
     movieKey,
     normalizeMovie,
     pickMovieByOdds,
+    wheelSegments,
     winnerEffectType
   };
 });

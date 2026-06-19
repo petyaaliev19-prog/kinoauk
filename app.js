@@ -32,13 +32,15 @@ const {
   canUseStakeOdds,
   filterMoviesByGenres,
   genreCounts,
+  groupMoviesByAuctionEligibility,
   isHorrorMovie,
   mergeMovieList,
   mod,
-  movieAtPointerFromRotation,
+  movieAtPointerFromSegments,
   movieKey,
   movieMetaLabel,
   pickMovieByOdds,
+  wheelSegments,
   winnerEffectType
 } = window.KinoaukCore;
 
@@ -472,7 +474,14 @@ function getMascotLines(kind, movie = "") {
 
 function renderList() {
   movieList.textContent = "";
-  const movies = filteredMovies();
+  const matchingMovies = filteredMovies();
+  const candidates = auctionMovies();
+  const hasGenreAuction = state.genreFilter.length > 0;
+  const movies = hasGenreAuction
+    ? groupMoviesByAuctionEligibility(matchingMovies, candidates)
+    : matchingMovies;
+  const candidateKeys = new Set(candidates.map(movieKey));
+  const oddsByKey = new Map(auctionOdds().map((entry) => [movieKey(entry.movie), entry]));
 
   if (!movies.length) {
     const empty = document.createElement("li");
@@ -484,7 +493,17 @@ function renderList() {
     return;
   }
 
+  let outsideDividerAdded = false;
   for (const movie of movies) {
+    const isCandidate = candidateKeys.has(movieKey(movie));
+    if (hasGenreAuction && !isCandidate && !outsideDividerAdded) {
+      const divider = document.createElement("li");
+      divider.className = "auction-divider";
+      divider.textContent = "Вне жанрового аукциона";
+      movieList.append(divider);
+      outsideDividerAdded = true;
+    }
+
     const item = template.content.firstElementChild.cloneNode(true);
     const link = item.querySelector(".movie-title");
     const poster = item.querySelector(".movie-poster");
@@ -492,22 +511,25 @@ function renderList() {
     const remove = item.querySelector(".remove-button");
     const maxStake = item.querySelector(".stake-max");
     const olyaStake = item.querySelector(".stake-olya");
-    const odds = auctionOdds();
-    const chance = odds.find((entry) => entry.movie === movie);
+    const chance = oddsByKey.get(movieKey(movie));
 
     link.textContent = "";
+    item.classList.toggle("outside-auction", hasGenreAuction && !isCandidate);
     const title = document.createElement("span");
     const meta = document.createElement("span");
+    const details = document.createElement("span");
     title.className = "movie-title-main";
     meta.className = "movie-meta";
+    details.className = "movie-details";
     title.textContent = movie.title;
     meta.textContent = movieMetaLabel(movie);
     const chanceMeta = document.createElement("span");
     chanceMeta.className = "movie-chance";
-    chanceMeta.textContent = chance ? `Шанс ${chanceLabel(chance.chance)}` : "Вне жанрового аукциона";
+    chanceMeta.textContent = chance ? `Шанс ${chanceLabel(chance.chance)}` : "Вне аукциона";
     link.append(title);
-    if (meta.textContent) link.append(meta);
-    link.append(chanceMeta);
+    if (meta.textContent) details.append(meta);
+    details.append(chanceMeta);
+    link.append(details);
     link.href = movie.url || "#";
     poster.hidden = false;
     poster.src = movie.poster || FALLBACK_POSTER;
@@ -603,6 +625,8 @@ function drawWheel(rotation = state.rotation, options = {}) {
   const cy = height / 2;
   const radius = width * 0.47;
   const movies = options.movies || auctionMovies();
+  const odds = options.odds || calculateMovieOdds(movies, state.stakes);
+  const segments = wheelSegments(movies, odds);
   const scale = options.scale ?? 1;
   const opacity = options.opacity ?? 1;
 
@@ -625,10 +649,10 @@ function drawWheel(rotation = state.rotation, options = {}) {
     return;
   }
 
-  const slice = (Math.PI * 2) / movies.length;
-  movies.forEach((movie, index) => {
-    const start = index * slice - Math.PI / 2;
-    const end = start + slice;
+  segments.forEach((segment, index) => {
+    const { movie } = segment;
+    const start = segment.start - Math.PI / 2;
+    const end = segment.end - Math.PI / 2;
 
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -641,11 +665,12 @@ function drawWheel(rotation = state.rotation, options = {}) {
     ctx.stroke();
 
     ctx.save();
-    ctx.rotate(start + slice / 2);
+    ctx.rotate(start + segment.angle / 2);
     ctx.textAlign = "right";
     ctx.fillStyle = "#111315";
-    ctx.font = movies.length > 18 ? "700 17px Segoe UI, Arial" : "800 23px Segoe UI, Arial";
-    ctx.fillText(truncate(movie.title, movies.length > 18 ? 24 : 18), radius - 28, 8);
+    const smallSegment = segment.angle < .11;
+    ctx.font = smallSegment || movies.length > 18 ? "700 17px Segoe UI, Arial" : "800 23px Segoe UI, Arial";
+    ctx.fillText(truncate(movie.title, smallSegment || movies.length > 18 ? 24 : 18), radius - 28, 8);
     ctx.restore();
   });
 
@@ -678,12 +703,12 @@ function spin() {
   playStartSound();
 
   const odds = calculateMovieOdds(movies, state.stakes);
+  const segments = wheelSegments(movies, odds);
   const stakesForSpin = { ...state.stakes };
   const selectedWinner = pickMovieByOdds(odds, Math.random);
-  const winnerIndex = movies.indexOf(selectedWinner);
-  const slice = (Math.PI * 2) / movies.length;
+  const winnerSegment = segments.find((segment) => segment.movie === selectedWinner);
   const targetAtPointer = Math.PI * 1.5;
-  const winnerCenter = winnerIndex * slice - Math.PI / 2 + slice / 2;
+  const winnerCenter = winnerSegment.start - Math.PI / 2 + winnerSegment.angle / 2;
   const turns = 6 + Math.random() * 4;
   const start = state.rotation;
   const end = start + turns * Math.PI * 2 + targetAtPointer - winnerCenter - (start % (Math.PI * 2));
@@ -694,8 +719,8 @@ function spin() {
     const progress = Math.min(1, (now - startedAt) / duration);
     const eased = 1 - Math.pow(1 - progress, 4);
     state.rotation = start + (end - start) * eased;
-    tickWheel(state.rotation, progress, movies);
-    drawWheel(state.rotation, { movies });
+    tickWheel(state.rotation, progress, movies, odds);
+    drawWheel(state.rotation, { movies, odds });
 
     if (progress < 1) {
       requestAnimationFrame(frame);
@@ -717,8 +742,8 @@ function spin() {
   requestAnimationFrame(frame);
 }
 
-function movieAtPointer(rotation, movies = auctionMovies()) {
-  return movieAtPointerFromRotation(movies, rotation);
+function movieAtPointer(rotation, movies = auctionMovies(), odds = calculateMovieOdds(movies, state.stakes)) {
+  return movieAtPointerFromSegments(movies, rotation, odds);
 }
 
 function getAudioContext() {
@@ -857,12 +882,12 @@ function playTickSound(progress) {
   if (Math.random() > .58) playTapeHiss(.03, .012, .008);
 }
 
-function tickWheel(rotation, progress, movies = auctionMovies()) {
+function tickWheel(rotation, progress, movies = auctionMovies(), odds = calculateMovieOdds(movies, state.stakes)) {
   if (!soundEnabled || !movies.length) return;
-  const slice = (Math.PI * 2) / movies.length;
-  const index = Math.floor(mod(-rotation, Math.PI * 2) / slice);
-  if (index === lastTickIndex) return;
-  lastTickIndex = index;
+  const movie = movieAtPointer(rotation, movies, odds);
+  const key = movieKey(movie);
+  if (key === lastTickIndex) return;
+  lastTickIndex = key;
   playTickSound(progress);
 }
 

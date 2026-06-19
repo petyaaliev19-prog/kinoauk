@@ -11,7 +11,7 @@ test("app.js consumes the shared core module", () => {
   const app = fs.readFileSync("app.js", "utf8");
   assert.match(app, /window\.KinoaukCore/);
   assert.match(app, /mergeMovieList/);
-  assert.match(app, /movieAtPointerFromRotation/);
+  assert.match(app, /movieAtPointerFromSegments/);
 });
 
 test("runtime files needed by shortcuts exist", () => {
@@ -65,9 +65,12 @@ test("movie list exposes exact stake controls and the spin uses weighted odds", 
   assert.match(html, /stake-olya/);
   assert.match(app, /calculateMovieOdds/);
   assert.match(app, /pickMovieByOdds/);
+  assert.match(app, /wheelSegments/);
+  assert.match(app, /groupMoviesByAuctionEligibility/);
   assert.match(app, /state\.stakes = \{ max: "", olya: "" \}/);
   assert.match(css, /\.movie-chance/);
   assert.match(css, /\.stake-button/);
+  assert.match(css, /\.auction-divider/);
 });
 
 test("horror premiere uses cassette horror naming and raster blood overlay", () => {
