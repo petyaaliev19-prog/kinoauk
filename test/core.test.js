@@ -11,11 +11,13 @@ const {
   mergeMovieList,
   mod,
   movieAtPointerFromRotation,
+  movieAtPointerFromSegments,
   movieGenres,
   movieMetaLabel,
   movieKey,
   normalizeMovie,
   pickMovieByOdds,
+  rotationToLandSegmentAtPointer,
   wheelSegments,
   winnerEffectType
 } = require("../core");
@@ -71,6 +73,7 @@ test("movie metadata label and horror detection are stable", () => {
   assert.equal(movieMetaLabel({ year: "1978", genre: "ужасы" }), "1978 · ужасы");
   assert.equal(isHorrorMovie({ title: "Нечто", genre: "ужасы" }), true);
   assert.equal(isHorrorMovie({ title: "Амели", genre: "мелодрама" }), false);
+  assert.equal(isHorrorMovie({ title: "Падаль", genre: "короткометражка" }), false);
 });
 
 test("genre helpers support multiple genres and preserve the full catalog by default", () => {
@@ -108,6 +111,21 @@ test("wheel sectors use the same exact weighted odds as the selection", () => {
   assert.ok(Math.abs(segments[0].angle - Math.PI * .7) < 1e-10);
   assert.ok(Math.abs(segments[2].angle - Math.PI * .3) < 1e-10);
   assert.ok(Math.abs(segments.at(-1).end - Math.PI * 2) < 1e-10);
+});
+
+test("wheel landing always puts the chosen weighted sector under the pointer", () => {
+  const movies = [{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }];
+  const odds = calculateMovieOdds(movies, { max: movieKey(movies[0]), olya: movieKey(movies[1]) });
+  const segments = wheelSegments(movies, odds);
+
+  for (const startRotation of [0, .37, Math.PI * 1.8, -1.2]) {
+    for (const turns of [6, 7.9, 9.25]) {
+      for (const segment of segments) {
+        const end = rotationToLandSegmentAtPointer(segment, startRotation, turns);
+        assert.equal(movieAtPointerFromSegments(movies, end, odds), segment.movie);
+      }
+    }
+  }
 });
 
 test("stakes add ten percentage points to the base chance before redistributing the rest", () => {
@@ -148,6 +166,7 @@ test("winnerEffectType maps key genres to premiere effects", () => {
   assert.equal(winnerEffectType({ title: "Безумный Макс", genre: "боевик" }), "action");
   assert.equal(winnerEffectType({ title: "Голый пистолет", genre: "комедия" }), "comedy");
   assert.equal(winnerEffectType({ title: "Кояанискаци", genre: "документальный" }), "default");
+  assert.equal(winnerEffectType({ title: "Падаль", genre: "короткометражка" }), "default");
 });
 
 test("mod handles negative rotations", () => {

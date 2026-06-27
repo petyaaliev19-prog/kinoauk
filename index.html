@@ -4,10 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Киноаук Максима и Оли</title>
+    <link rel="stylesheet" href="node_modules/@fontsource/rubik-mono-one/cyrillic-400.css">
+    <link rel="stylesheet" href="node_modules/@fontsource/ibm-plex-mono/cyrillic-400.css">
+    <link rel="stylesheet" href="node_modules/@fontsource/ibm-plex-mono/cyrillic-700.css">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <div class="poster-backdrop" id="posterBackdrop" aria-hidden="true"></div>
+    <div class="theme-switch" role="group" aria-label="Освещение комнаты">
+      <button class="theme-option" id="autoThemeButton" type="button" aria-pressed="true" title="Подбирать освещение по времени">AUTO</button>
+      <button class="theme-option" id="nightThemeButton" type="button" aria-pressed="false" title="Ночная тема" aria-label="Ночная тема">☾</button>
+      <button class="theme-option" id="dayThemeButton" type="button" aria-pressed="false" title="Дневная тема" aria-label="Дневная тема">☀</button>
+    </div>
+    <div class="wheel-osd" id="vhsOsd" aria-hidden="true"></div>
     <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
     <div class="genre-stage-effects" id="genreStageEffects" aria-hidden="true"></div>
     <div class="winner-modal" id="winnerModal" hidden>
@@ -28,7 +37,6 @@
     </div>
     <aside class="mascot-stage" aria-hidden="true">
       <div class="mascot-speech" id="mascotSpeech">Киномагия для Оли и Максима уже шуршит плёнкой.</div>
-      <img class="family-mascot" src="assets/mascot.png" alt="Семейный зелёный маскот">
     </aside>
 
     <main class="app">
@@ -39,6 +47,10 @@
             <h1>Что смотрим сегодня?</h1>
             <p class="subtitle">ТЫ ПРИЕХАЛА В ДИКТАТУРУ!!</p>
             <div class="dictatorship-banner" id="dictatorshipBanner" aria-live="polite">Результат ещё можно обсуждать. Пока.</div>
+            <div class="mode-switch" role="group" aria-label="Режим киноаука">
+              <button class="mode-option active" id="shelfModeButton" type="button" aria-pressed="true">Полка</button>
+              <button class="mode-option" id="rentalModeButton" type="button" aria-pressed="false">Прокат</button>
+            </div>
           </div>
           <div class="top-actions">
             <button class="icon-button" id="soundButton" type="button" title="Звук" aria-label="Звук">♪</button>
@@ -56,6 +68,56 @@
           </div>
           <div class="empty-wheel-label" id="emptyWheelLabel" aria-hidden="true">Нет фильмов</div>
         </div>
+
+        <section class="rental-stage" id="rentalStage" hidden aria-labelledby="rentalStageTitle">
+          <p class="rental-kicker">TMDb · ВНЕШНИЙ КАТАЛОГ</p>
+          <h2 id="rentalStageTitle">Собрать вечер</h2>
+          <p class="rental-copy">Выбери жанр и, если нужно, конкретного человека из каталога. Прокат соберёт полный пул кассет, не трогая домашнюю полку.</p>
+          <form class="rental-form" id="rentalForm" aria-label="Форма проката">
+            <label class="rental-field">
+              <span>Жанр</span>
+              <select id="rentalGenreSelect">
+                <option value="">Загрузка жанров...</option>
+              </select>
+            </label>
+            <label class="rental-field rental-field-wide">
+              <span>Актёр / актриса</span>
+              <input id="rentalPersonInput" type="search" placeholder="Начни вводить имя" autocomplete="off">
+            </label>
+            <div class="rental-person-suggestions" id="rentalPersonSuggestions" aria-label="Выбор человека">
+              <p class="rental-empty-hint">Подсказки появятся после ввода имени.</p>
+            </div>
+            <label class="rental-checkbox">
+              <input id="rentalIncludeTv" type="checkbox">
+              <span>Учитывать сериалы</span>
+            </label>
+            <details class="rental-extra" open>
+              <summary>Дополнительно — позже</summary>
+              <div class="rental-extra-grid" aria-label="Будущие фильтры проката">
+                <label>
+                  <span>Режиссёр</span>
+                  <input type="text" value="не выбран" disabled>
+                </label>
+                <label>
+                  <span>Год от</span>
+                  <input type="text" value="любой" disabled>
+                </label>
+                <label>
+                  <span>Рейтинг от</span>
+                  <input type="text" value="любой" disabled>
+                </label>
+              </div>
+            </details>
+            <div class="rental-status" id="rentalStatus" role="status">
+              <strong id="rentalStatusTitle">Кассеты ещё не собраны</strong>
+              <span id="rentalStatusText">Можно собрать пул только по жанру или уточнить актёра через поиск.</span>
+            </div>
+            <div class="rental-actions">
+              <button class="primary" id="rentalBuildPoolButton" type="submit">Собрать кассеты</button>
+              <button id="rentalClearButton" type="button">Очистить</button>
+            </div>
+          </form>
+        </section>
 
         <div class="controls">
           <button class="primary" id="spinButton" type="button">Крутить</button>
@@ -105,12 +167,12 @@
 
         <div class="tab-panel" id="genrePanel" role="tabpanel" aria-labelledby="genreTab">
           <section class="genre-auction" id="genreAuction" aria-label="Жанровый аукцион">
-            <button class="genre-auction-toggle" id="genreAuctionToggle" type="button" aria-expanded="false">
+            <div class="genre-auction-toggle" id="genreAuctionToggle">
               <span class="genre-auction-kicker">Жанровый аукцион</span>
               <strong id="genreAuctionSummary">Весь каталог</strong>
               <span class="genre-auction-count" id="genreAuctionCount">0 кассет</span>
-            </button>
-            <div class="genre-auction-panel" id="genreAuctionPanel" hidden>
+            </div>
+            <div class="genre-auction-panel" id="genreAuctionPanel">
               <div class="genre-auction-heading">
                 <span>Настроить сегодняшний прокат</span>
                 <small id="genreAuctionDraft">Весь каталог</small>
@@ -123,6 +185,23 @@
             </div>
           </section>
         </div>
+
+        <section class="rental-list-panel" id="rentalListPanel" hidden aria-labelledby="rentalListTitle">
+          <div class="rental-list-heading">
+            <span>КАССЕТЫ ПО ЗАПРОСУ</span>
+            <strong id="rentalListTitle">Пул ещё не собран</strong>
+            <small id="rentalListMeta">После запроса здесь будет полный результат TMDb</small>
+          </div>
+          <ol class="rental-tape-list" id="rentalTapeList" aria-label="Список фильмов проката">
+            <li class="rental-empty-row"><strong>Список появится после сборки кассет</strong></li>
+          </ol>
+          <div class="rental-machine-note">
+            <span>Режим выбора</span>
+            <strong id="rentalMachineMode">Колесо или VHS-автомат</strong>
+            <small id="rentalMachineNote">Если кассет слишком много, автомат выберет честно из всего пула.</small>
+          </div>
+          <p class="rental-list-footnote">Ничего из «Полки» в этот список не подмешивается. «Наша видеотека» появится отдельной будущей задачей.</p>
+        </section>
       </section>
     </main>
 
@@ -141,6 +220,7 @@
     </template>
 
     <script src="core.js"></script>
+    <script src="node_modules/motion/dist/motion.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -2,6 +2,9 @@ const STORAGE_KEY = "kinoauk.movies.v1";
 const HISTORY_KEY = "kinoauk.history.v1";
 const GENRE_FILTER_KEY = "kinoauk.genre-filter.v1";
 const STAKES_KEY = "kinoauk.stakes.v1";
+const THEME_KEY = "kinoauk.theme.v1";
+const MODE_KEY = "kinoauk.mode.v1";
+const RENTAL_WHEEL_LIMIT = 24;
 const FALLBACK_POSTER = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 180">
   <defs>
@@ -35,11 +38,11 @@ const {
   groupMoviesByAuctionEligibility,
   isHorrorMovie,
   mergeMovieList,
-  mod,
   movieAtPointerFromSegments,
   movieKey,
   movieMetaLabel,
   pickMovieByOdds,
+  rotationToLandSegmentAtPointer,
   wheelSegments,
   winnerEffectType
 } = window.KinoaukCore;
@@ -49,9 +52,27 @@ const state = {
   history: loadJson(HISTORY_KEY, []),
   genreFilter: loadJson(GENRE_FILTER_KEY, []),
   stakes: loadJson(STAKES_KEY, { max: "", olya: "" }),
+  themeMode: ["auto", "day", "night"].includes(loadJson(THEME_KEY, "auto")) ? loadJson(THEME_KEY, "auto") : "auto",
+  mode: ["shelf", "rental"].includes(loadJson(MODE_KEY, "shelf")) ? loadJson(MODE_KEY, "shelf") : "shelf",
   rotation: 0,
   spinning: false,
   winner: null,
+  rental: {
+    genres: [],
+    genresLoaded: false,
+    genresLoading: false,
+    people: [],
+    peopleLoading: false,
+    selectedPerson: null,
+    session: null,
+    loading: false,
+    status: "Можно собрать пул только по жанру или уточнить актёра через поиск.",
+    errorCode: null
+  },
+  // Keep the exact sector geometry that the animation landed on. Stakes are
+  // cleared after a result, so recalculating here would move the winner away
+  // from the pointer even though the canvas itself has stopped.
+  settledWheel: null,
   query: ""
 };
 
@@ -65,6 +86,7 @@ const removeWinnerButton = document.querySelector("#removeWinnerButton");
 const resetWinnerButton = document.querySelector("#resetWinnerButton");
 const movieCount = document.querySelector("#movieCount");
 const emptyWheelLabel = document.querySelector("#emptyWheelLabel");
+const vhsOsd = document.querySelector("#vhsOsd");
 const winnerBox = document.querySelector("#winnerBox");
 const winnerLink = document.querySelector("#winnerLink");
 const winnerPoster = document.querySelector("#winnerPoster");
@@ -74,6 +96,27 @@ const clearButton = document.querySelector("#clearButton");
 const refreshKinopoiskButton = document.querySelector("#refreshKinopoiskButton");
 const refreshKinopoiskStatus = document.querySelector("#refreshKinopoiskStatus");
 const soundButton = document.querySelector("#soundButton");
+const autoThemeButton = document.querySelector("#autoThemeButton");
+const dayThemeButton = document.querySelector("#dayThemeButton");
+const nightThemeButton = document.querySelector("#nightThemeButton");
+const shelfModeButton = document.querySelector("#shelfModeButton");
+const rentalModeButton = document.querySelector("#rentalModeButton");
+const rentalStage = document.querySelector("#rentalStage");
+const rentalListPanel = document.querySelector("#rentalListPanel");
+const rentalForm = document.querySelector("#rentalForm");
+const rentalGenreSelect = document.querySelector("#rentalGenreSelect");
+const rentalPersonInput = document.querySelector("#rentalPersonInput");
+const rentalPersonSuggestions = document.querySelector("#rentalPersonSuggestions");
+const rentalIncludeTv = document.querySelector("#rentalIncludeTv");
+const rentalBuildPoolButton = document.querySelector("#rentalBuildPoolButton");
+const rentalClearButton = document.querySelector("#rentalClearButton");
+const rentalStatusTitle = document.querySelector("#rentalStatusTitle");
+const rentalStatusText = document.querySelector("#rentalStatusText");
+const rentalListTitle = document.querySelector("#rentalListTitle");
+const rentalListMeta = document.querySelector("#rentalListMeta");
+const rentalTapeList = document.querySelector("#rentalTapeList");
+const rentalMachineMode = document.querySelector("#rentalMachineMode");
+const rentalMachineNote = document.querySelector("#rentalMachineNote");
 const shutdownButton = document.querySelector("#shutdownButton");
 const dictatorshipBanner = document.querySelector("#dictatorshipBanner");
 const confettiLayer = document.querySelector("#confettiLayer");
@@ -89,7 +132,6 @@ const winnerModalTitle = document.querySelector("#winnerModalTitle");
 const watchWinnerButton = document.querySelector("#watchWinnerButton");
 const modalRemoveWinnerButton = document.querySelector("#modalRemoveWinnerButton");
 const closeWinnerModalButton = document.querySelector("#closeWinnerModalButton");
-const genreAuctionToggle = document.querySelector("#genreAuctionToggle");
 const genreAuctionPanel = document.querySelector("#genreAuctionPanel");
 const genreAuctionSummary = document.querySelector("#genreAuctionSummary");
 const genreAuctionCount = document.querySelector("#genreAuctionCount");
@@ -97,6 +139,7 @@ const genreAuctionDraft = document.querySelector("#genreAuctionDraft");
 const genreChipList = document.querySelector("#genreChipList");
 const genreAllButton = document.querySelector("#genreAllButton");
 const genreApplyButton = document.querySelector("#genreApplyButton");
+const motionAnimate = window.Motion?.animate;
 
 let audioContext = null;
 let soundEnabled = loadJson("kinoauk.sound.v1", true);
@@ -104,10 +147,10 @@ let lastTickIndex = -1;
 let lastSettlingRollerAt = 0;
 let horrorScream = null;
 let actionGunshots = null;
-let genrePanelOpen = false;
 let genreDraft = [...state.genreFilter];
 let genreTransition = null;
 let mascotSpeechTimer = null;
+let rentalPersonSearchTimer = null;
 
 const mascotLines = {
   idle: [
@@ -182,19 +225,6 @@ const genreMascotLines = {
   ]
 };
 
-const backdropPosters = [
-  "assets/backdrop/1-fight-club.jpg",
-  "assets/backdrop/2-pulp-fiction.jpg",
-  "assets/backdrop/3-the-matrix.png",
-  "assets/backdrop/4-blade-runner.png",
-  "assets/backdrop/5-the-big-lebowski.jpg",
-  "assets/backdrop/6-trainspotting-film.jpg",
-  "assets/backdrop/7-drive-2011-film.jpg",
-  "assets/backdrop/8-kill-bill-volume-1.png",
-  "assets/backdrop/9-the-grand-budapest-hotel.png",
-  "assets/backdrop/10-amelie.jpg"
-];
-
 function loadJson(key, fallback) {
   try {
     return JSON.parse(localStorage.getItem(key)) ?? fallback;
@@ -208,10 +238,13 @@ function save() {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
   localStorage.setItem(GENRE_FILTER_KEY, JSON.stringify(state.genreFilter));
   localStorage.setItem(STAKES_KEY, JSON.stringify(state.stakes));
+  localStorage.setItem(THEME_KEY, JSON.stringify(state.themeMode));
+  localStorage.setItem(MODE_KEY, JSON.stringify(state.mode));
 }
 
 function mergeMovies(nextMovies) {
   if (state.spinning) return;
+  state.settledWheel = null;
   state.movies = mergeMovieList(state.movies, nextMovies, { fallbackPoster: FALLBACK_POSTER });
   save();
   render();
@@ -277,13 +310,9 @@ function genreEffectType(genre) {
 function renderGenreAuction() {
   const candidates = auctionMovies();
   const locked = state.spinning;
-  genreAuctionToggle.disabled = locked;
-  genreAuctionToggle.setAttribute("aria-expanded", String(genrePanelOpen));
   genreAuctionSummary.textContent = genreSummary();
   genreAuctionCount.textContent = `${candidates.length} ${pluralizeCassettes(candidates.length)}`;
-  genreAuctionPanel.hidden = !genrePanelOpen;
-
-  if (!genrePanelOpen) return;
+  genreAuctionPanel.hidden = false;
 
   genreAuctionDraft.textContent = genreSummary(genreDraft);
   genreChipList.textContent = "";
@@ -313,8 +342,10 @@ function toggleGenreDraft(genre) {
   const chip = genreChipList.querySelector(`[data-genre="${CSS.escape(genre)}"]`);
   if (chip) runGenreChipEffect(chip, genreEffectType(genre));
   const effect = genreEffectType(genre);
-  playGenreFilterSound(effect);
-  showGenreStageEffect(effect);
+  if (effect !== "drama") {
+    playGenreFilterSound(effect);
+    showGenreStageEffect(effect);
+  }
   sayMascotGenre(effect);
 }
 
@@ -327,7 +358,7 @@ function runGenreChipEffect(chip, effect) {
 
 function showGenreStageEffect(effect) {
   genreStageEffects.textContent = "";
-  if (effect === "thriller") return;
+  if (effect === "thriller" || effect === "drama") return;
   const scene = document.createElement("div");
   scene.className = `genre-stage-effect genre-stage-${effect}`;
   if (effect === "horror") {
@@ -340,6 +371,103 @@ function showGenreStageEffect(effect) {
   setTimeout(() => scene.remove(), 1100);
 }
 
+function showDramaRain() {
+  genreStageEffects.textContent = "";
+  const canvas = document.createElement("canvas");
+  canvas.className = "genre-rain-canvas";
+  canvas.setAttribute("aria-hidden", "true");
+  genreStageEffects.append(canvas);
+
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const lifetime = 2300;
+  let animationFrame = 0;
+  let expiresAt = 0;
+  const rainTexture = new Image();
+  const rainFrame = document.createElement("canvas");
+  const frameContext = rainFrame.getContext("2d", { willReadFrequently: true });
+
+  function resize() {
+    const scale = Math.min(window.devicePixelRatio || 1, 2);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    canvas.width = Math.floor(width * scale);
+    canvas.height = Math.floor(height * scale);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+  }
+
+  function clearRain() {
+    cancelAnimationFrame(animationFrame);
+    window.removeEventListener("resize", resize);
+    if (canvas.parentElement) genreStageEffects.textContent = "";
+  }
+
+  function prepareRainFrame() {
+    if (!frameContext) return false;
+    rainFrame.width = rainTexture.naturalWidth;
+    rainFrame.height = rainTexture.naturalHeight;
+    frameContext.clearRect(0, 0, rainFrame.width, rainFrame.height);
+    frameContext.drawImage(rainTexture, 0, 0);
+    const pixels = frameContext.getImageData(0, 0, rainFrame.width, rainFrame.height);
+
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      const brightness = Math.max(pixels.data[index], pixels.data[index + 1], pixels.data[index + 2]);
+      if (brightness <= 12) {
+        pixels.data[index + 3] = 0;
+      } else {
+        pixels.data[index + 3] = Math.round(pixels.data[index + 3] * Math.min(1, (brightness - 8) / 54));
+      }
+    }
+
+    frameContext.putImageData(pixels, 0, 0);
+    return true;
+  }
+
+  function draw(now) {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const progress = Math.min((now - (expiresAt - lifetime)) / lifetime, 1);
+    context.clearRect(0, 0, width, height);
+    context.globalCompositeOperation = "source-over";
+    context.imageSmoothingQuality = "high";
+    const imageRatio = rainFrame.width / rainFrame.height;
+    const viewportRatio = width / height;
+    const drawWidth = viewportRatio > imageRatio ? width : height * imageRatio;
+    const drawHeight = viewportRatio > imageRatio ? width / imageRatio : height;
+    const fade = progress < .14 ? progress / .14 : progress > .78 ? (1 - progress) / .22 : 1;
+    context.globalAlpha = Math.max(0, fade) * .92;
+    context.drawImage(
+      rainFrame,
+      (width - drawWidth) / 2,
+      (height - drawHeight) / 2 + progress * 12,
+      drawWidth,
+      drawHeight
+    );
+
+    if (now >= expiresAt) {
+      clearRain();
+      return;
+    }
+    animationFrame = requestAnimationFrame(draw);
+  }
+
+  window.addEventListener("resize", resize);
+  rainTexture.addEventListener("load", () => {
+    if (!canvas.parentElement) return;
+    if (!prepareRainFrame()) {
+      clearRain();
+      return;
+    }
+    resize();
+    expiresAt = performance.now() + lifetime;
+    animationFrame = requestAnimationFrame(draw);
+  }, { once: true });
+  rainTexture.addEventListener("error", clearRain, { once: true });
+  rainTexture.src = "assets/effects/drama-rain-frame-v2.png";
+}
+
 function sayMascotGenre(effect) {
   const lines = genreMascotLines[effect] || genreMascotLines.catalog;
   setMascotSpeech(lines[Math.floor(Math.random() * lines.length)], effect);
@@ -347,15 +475,19 @@ function sayMascotGenre(effect) {
 
 function applyGenreFilter() {
   if (state.spinning) return;
+  state.settledWheel = null;
   const before = auctionMovies();
   const beforeOdds = auctionOdds();
   state.genreFilter = [...genreDraft];
   const after = auctionMovies();
   if (!canUseStakeOdds(after, state.stakes)) state.stakes = { max: "", olya: "" };
   const afterOdds = auctionOdds();
-  genrePanelOpen = true;
   save();
   render();
+  if (state.genreFilter.some((genre) => genreEffectType(genre) === "drama")) {
+    showDramaRain();
+    playGenreFilterSound("drama");
+  }
   animateGenreRemontage(before, after, beforeOdds, afterOdds);
   sayMascotGenre(state.genreFilter.length ? genreEffectType(state.genreFilter[0]) : "catalog");
 }
@@ -377,7 +509,7 @@ function render() {
     ? "В этой кассете нет подходящих жанров"
     : "Нет фильмов";
   document.body.classList.toggle("dictatorship-active", state.spinning);
-  document.body.dataset.vhsOsd = vhsOsdLabel();
+  vhsOsd.textContent = vhsOsdLabel();
   dictatorshipBanner.textContent = state.spinning
     ? "РЕЗУЛЬТАТ ЗАПЕЧАТАН НА VHS. ПЕРЕГОЛОСОВКИ НЕТ."
     : "Результат ещё можно обсуждать. Пока.";
@@ -397,6 +529,177 @@ function render() {
     control.disabled = state.spinning;
   });
   soundButton.classList.toggle("sound-on", soundEnabled);
+  const theme = activeTheme();
+  document.body.dataset.theme = theme;
+  autoThemeButton.setAttribute("aria-pressed", String(state.themeMode === "auto"));
+  dayThemeButton.setAttribute("aria-pressed", String(state.themeMode === "day"));
+  nightThemeButton.setAttribute("aria-pressed", String(state.themeMode === "night"));
+  document.body.dataset.mode = state.mode;
+  shelfModeButton.classList.toggle("active", state.mode === "shelf");
+  rentalModeButton.classList.toggle("active", state.mode === "rental");
+  shelfModeButton.setAttribute("aria-pressed", String(state.mode === "shelf"));
+  rentalModeButton.setAttribute("aria-pressed", String(state.mode === "rental"));
+  rentalStage.hidden = state.mode !== "rental";
+  rentalListPanel.hidden = state.mode !== "rental";
+  renderRental();
+}
+
+function setAppMode(mode) {
+  if (state.spinning || !["shelf", "rental"].includes(mode)) return;
+  state.mode = mode;
+  save();
+  render();
+  if (mode === "rental") ensureRentalGenres();
+}
+
+function renderRental() {
+  if (!rentalForm) return;
+
+  const selectedGenre = rentalGenreSelect.value;
+  rentalGenreSelect.disabled = state.rental.genresLoading || state.rental.loading;
+  rentalPersonInput.disabled = state.rental.loading;
+  rentalIncludeTv.disabled = state.rental.loading;
+  rentalBuildPoolButton.disabled = state.rental.loading || state.rental.genresLoading || !selectedGenre;
+  rentalClearButton.disabled = state.rental.loading
+    || (!selectedGenre && !rentalPersonInput.value && !state.rental.selectedPerson && !state.rental.session);
+
+  rentalStatusTitle.textContent = rentalStatusTitleText();
+  rentalStatusText.textContent = state.rental.status;
+  renderRentalGenres();
+  renderRentalPeople();
+  renderRentalSession();
+}
+
+function rentalStatusTitleText() {
+  if (state.rental.loading) return "Собираю кассеты";
+  if (state.rental.peopleLoading) return "Ищу человека";
+  if (state.rental.session) return `${state.rental.session.totalCount} ${tapeWord(state.rental.session.totalCount)} найдено`;
+  if (state.rental.genresLoading) return "Загружаю жанры";
+  return "Кассеты ещё не собраны";
+}
+
+function renderRentalGenres() {
+  const current = rentalGenreSelect.value;
+  rentalGenreSelect.innerHTML = "";
+
+  if (state.rental.genresLoading) {
+    rentalGenreSelect.append(new Option("Загрузка жанров...", ""));
+    return;
+  }
+
+  if (state.rental.errorCode === "TMDB_TOKEN_MISSING") {
+    rentalGenreSelect.append(new Option("Нужен ключ TMDb", ""));
+    return;
+  }
+
+  if (!state.rental.genres.length) {
+    rentalGenreSelect.append(new Option("Жанры недоступны", ""));
+    return;
+  }
+
+  rentalGenreSelect.append(new Option("Выбрать жанр", ""));
+  for (const genre of state.rental.genres) {
+    rentalGenreSelect.append(new Option(genre.name, String(genre.tmdbId)));
+  }
+  rentalGenreSelect.value = state.rental.genres.some((genre) => String(genre.tmdbId) === current) ? current : "";
+}
+
+function renderRentalPeople() {
+  rentalPersonSuggestions.innerHTML = "";
+
+  if (state.rental.selectedPerson) {
+    rentalPersonSuggestions.append(rentalPersonButton(state.rental.selectedPerson, true));
+    return;
+  }
+
+  if (state.rental.peopleLoading) {
+    const hint = document.createElement("p");
+    hint.className = "rental-empty-hint";
+    hint.textContent = "Ищу в каталоге TMDb...";
+    rentalPersonSuggestions.append(hint);
+    return;
+  }
+
+  if (state.rental.errorCode === "TMDB_TOKEN_MISSING") {
+    const hint = document.createElement("p");
+    hint.className = "rental-empty-hint";
+    hint.textContent = "Поиск TMDb не запустится без TMDB_API_TOKEN в файле .env рядом с server.js.";
+    rentalPersonSuggestions.append(hint);
+    return;
+  }
+
+  if (!rentalPersonInput.value.trim()) {
+    const hint = document.createElement("p");
+    hint.className = "rental-empty-hint";
+    hint.textContent = "Подсказки появятся после ввода имени.";
+    rentalPersonSuggestions.append(hint);
+    return;
+  }
+
+  if (!state.rental.people.length) {
+    const hint = document.createElement("p");
+    hint.className = "rental-empty-hint";
+    hint.textContent = "Никого не нашли. Проверь имя или попробуй другой запрос.";
+    rentalPersonSuggestions.append(hint);
+    return;
+  }
+
+  for (const person of state.rental.people) {
+    rentalPersonSuggestions.append(rentalPersonButton(person, false));
+  }
+}
+
+function rentalPersonButton(person, active) {
+  const button = document.createElement("button");
+  button.className = `rental-person-suggestion${active ? " active" : ""}`;
+  button.type = "button";
+  button.dataset.tmdbId = person.tmdbId;
+  const name = document.createElement("strong");
+  name.textContent = person.name;
+  const meta = document.createElement("small");
+  meta.textContent = person.knownFor?.length
+    ? person.knownFor.join(" · ")
+    : person.knownForDepartment || "TMDb";
+  button.append(name, meta);
+  return button;
+}
+
+function renderRentalSession() {
+  const session = state.rental.session;
+  rentalTapeList.innerHTML = "";
+
+  if (!session) {
+    rentalListTitle.textContent = "Пул ещё не собран";
+    rentalListMeta.textContent = "После запроса здесь будет полный результат TMDb";
+    rentalMachineMode.textContent = "Колесо или VHS-автомат";
+    rentalMachineNote.textContent = "Если кассет слишком много, автомат выберет честно из всего пула.";
+    const item = document.createElement("li");
+    item.className = "rental-empty-row";
+    const title = document.createElement("strong");
+    title.textContent = "Список появится после сборки кассет";
+    item.append(title);
+    rentalTapeList.append(item);
+    return;
+  }
+
+  rentalListTitle.textContent = session.queryLabel || "Прокат по запросу";
+  rentalListMeta.textContent = `${session.totalCount} ${tapeWord(session.totalCount)} в полном пуле`;
+  rentalMachineMode.textContent = session.totalCount <= RENTAL_WHEEL_LIMIT ? "Колесо" : "VHS-автомат";
+  rentalMachineNote.textContent = session.totalCount <= RENTAL_WHEEL_LIMIT
+    ? "Пул достаточно компактный для читаемого колеса."
+    : "Пул большой, поэтому выбор будет честно сделан из всего списка.";
+
+  for (const movie of session.items) {
+    const item = document.createElement("li");
+    const index = document.createElement("span");
+    index.textContent = String(movie.tmdbRank || rentalTapeList.children.length + 1).padStart(3, "0");
+    const title = document.createElement("strong");
+    title.textContent = movie.title;
+    const meta = document.createElement("small");
+    meta.textContent = `${movie.mediaType === "tv" ? "сериал" : "фильм"}${movie.year ? ` · ${movie.year}` : ""}`;
+    item.append(index, title, meta);
+    rentalTapeList.append(item);
+  }
 }
 
 function vhsOsdLabel() {
@@ -413,15 +716,13 @@ function vhsOsdLabel() {
 }
 
 function renderPosterBackdrop() {
-  if (posterBackdrop.children.length) return;
-  posterBackdrop.textContent = "";
-  [...backdropPosters, ...backdropPosters, ...backdropPosters].forEach((poster, index) => {
-    const tile = document.createElement("div");
-    tile.className = "poster-tile";
-    tile.style.setProperty("--tilt", `${(index % 7 - 3) * 1.1}deg`);
-    tile.style.backgroundImage = `url("${poster}")`;
-    posterBackdrop.append(tile);
-  });
+  posterBackdrop.dataset.theme = activeTheme();
+}
+
+function activeTheme(now = new Date()) {
+  if (state.themeMode !== "auto") return state.themeMode;
+  const hour = now.getHours();
+  return hour >= 8 && hour < 19 ? "day" : "night";
 }
 
 function sayMascot(kind, movie = "") {
@@ -557,6 +858,7 @@ function renderList() {
 
     remove.addEventListener("click", () => {
       if (state.spinning) return;
+      state.settledWheel = null;
       state.movies = state.movies.filter((candidate) => candidate !== movie);
       for (const player of ["max", "olya"]) {
         if (state.stakes[player] === movieKey(movie)) state.stakes[player] = "";
@@ -581,6 +883,7 @@ function toggleStake(player, movie) {
     playTapeClick();
     return;
   }
+  state.settledWheel = null;
   state.stakes = nextStakes;
   const afterOdds = calculateMovieOdds(candidates, state.stakes);
   save();
@@ -631,8 +934,9 @@ function drawWheel(rotation = state.rotation, options = {}) {
   const cx = width / 2;
   const cy = height / 2;
   const radius = width * 0.47;
-  const movies = options.movies || auctionMovies();
-  const odds = options.odds || calculateMovieOdds(movies, state.stakes);
+  const settledWheel = !options.movies && state.settledWheel;
+  const movies = options.movies || settledWheel?.movies || auctionMovies();
+  const odds = options.odds || settledWheel?.odds || calculateMovieOdds(movies, state.stakes);
   const segments = wheelSegments(movies, odds);
   const scale = options.scale ?? 1;
   const opacity = options.opacity ?? 1;
@@ -704,6 +1008,7 @@ function spin() {
 
   state.spinning = true;
   state.winner = null;
+  state.settledWheel = null;
   lastTickIndex = -1;
   lastSettlingRollerAt = 0;
   sayMascot(Math.random() > .45 ? "locked" : "spin");
@@ -715,11 +1020,11 @@ function spin() {
   const stakesForSpin = { ...state.stakes };
   const selectedWinner = pickMovieByOdds(odds, Math.random);
   const winnerSegment = segments.find((segment) => segment.movie === selectedWinner);
-  const targetAtPointer = Math.PI * 1.5;
-  const winnerCenter = winnerSegment.start - Math.PI / 2 + winnerSegment.angle / 2;
-  const turns = 6 + Math.random() * 4;
+  // Only whole rotations belong before the final aiming correction. A
+  // fractional turn would rotate the chosen segment away from the pointer.
+  const turns = 6 + Math.floor(Math.random() * 4);
   const start = state.rotation;
-  const end = start + turns * Math.PI * 2 + targetAtPointer - winnerCenter - (start % (Math.PI * 2));
+  const end = rotationToLandSegmentAtPointer(winnerSegment, start, turns);
   const startedAt = performance.now();
   const duration = 4300;
 
@@ -738,6 +1043,7 @@ function spin() {
     state.spinning = false;
     state.rotation = end % (Math.PI * 2);
     state.winner = selectedWinner;
+    state.settledWheel = { movies, odds };
     sayMascot("win", state.winner);
     state.history.unshift({ ...state.winner, wonAt: new Date().toISOString(), stakes: stakesForSpin });
     state.history = state.history.slice(0, 20);
@@ -1009,6 +1315,18 @@ function renderWinnerModal(movie, effect) {
     winnerModalPoster.onerror = null;
     winnerModalPoster.src = FALLBACK_POSTER;
   };
+  playLibraryEntrance(winnerModal.querySelector(".winner-modal-card"));
+}
+
+function playLibraryEntrance(element) {
+  if (!motionAnimate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  motionAnimate(element, {
+    opacity: [0, 1],
+    transform: ["translateY(26px) rotate(-.8deg) scale(.96)", "translateY(0) rotate(0deg) scale(1)"]
+  }, {
+    duration: .46,
+    ease: [.16, .9, .28, 1]
+  });
 }
 
 function closeWinnerModal() {
@@ -1021,6 +1339,7 @@ function removeWinnerFromModal() {
   if (!state.winner) return;
   state.movies = state.movies.filter((movie) => movie !== state.winner);
   state.winner = null;
+  state.settledWheel = null;
   closeWinnerModal();
   save();
   render();
@@ -1181,13 +1500,6 @@ searchInput.addEventListener("input", () => {
   renderList();
 });
 
-genreAuctionToggle.addEventListener("click", () => {
-  if (state.spinning) return;
-  genrePanelOpen = !genrePanelOpen;
-  if (genrePanelOpen) genreDraft = [...state.genreFilter];
-  renderGenreAuction();
-});
-
 genreAllButton.addEventListener("click", () => {
   if (state.spinning) return;
   genreDraft = [];
@@ -1204,6 +1516,7 @@ clearButton.addEventListener("click", () => {
   state.movies = [];
   state.stakes = { max: "", olya: "" };
   state.winner = null;
+  state.settledWheel = null;
   save();
   render();
 });
@@ -1214,6 +1527,7 @@ removeWinnerButton.addEventListener("click", () => {
   if (!state.winner) return;
   state.movies = state.movies.filter((movie) => movie !== state.winner);
   state.winner = null;
+  state.settledWheel = null;
   closeWinnerModal();
   save();
   render();
@@ -1221,6 +1535,7 @@ removeWinnerButton.addEventListener("click", () => {
 
 resetWinnerButton.addEventListener("click", () => {
   state.winner = null;
+  state.settledWheel = null;
   closeWinnerModal();
   sayMascot("reset");
   render();
@@ -1240,6 +1555,21 @@ soundButton.addEventListener("click", () => {
   if (soundEnabled) playButtonClack();
   render();
 });
+
+function setTheme(themeMode) {
+  if (!['auto', 'day', 'night'].includes(themeMode)) return;
+  state.themeMode = themeMode;
+  save();
+  render();
+}
+
+autoThemeButton.addEventListener("click", () => setTheme("auto"));
+dayThemeButton.addEventListener("click", () => setTheme("day"));
+nightThemeButton.addEventListener("click", () => setTheme("night"));
+
+setInterval(() => {
+  if (state.themeMode === "auto") render();
+}, 60_000);
 
 shutdownButton.addEventListener("click", async () => {
   if (!confirm("Выключить локальный сервер Киноаука?")) return;
@@ -1272,13 +1602,179 @@ refreshKinopoiskButton.addEventListener("click", async () => {
   }
 });
 
+rentalPersonInput.addEventListener("input", () => {
+  clearTimeout(rentalPersonSearchTimer);
+  state.rental.selectedPerson = null;
+  state.rental.session = null;
+  rentalPersonSearchTimer = setTimeout(() => searchRentalPeople(rentalPersonInput.value), 320);
+  render();
+});
+
+rentalPersonSuggestions.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const button = target?.closest(".rental-person-suggestion");
+  if (!button) return;
+  const person = state.rental.people.find((candidate) => String(candidate.tmdbId) === button.dataset.tmdbId);
+  if (!person) return;
+  state.rental.selectedPerson = person;
+  rentalPersonInput.value = person.name;
+  state.rental.status = "Человек выбран. Можно собирать кассеты.";
+  render();
+});
+
+rentalGenreSelect.addEventListener("change", () => {
+  state.rental.session = null;
+  render();
+});
+
+rentalIncludeTv.addEventListener("change", () => {
+  state.rental.session = null;
+  render();
+});
+
+rentalForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  buildRentalSession();
+});
+
+rentalClearButton.addEventListener("click", clearRentalForm);
+
 async function refreshFromServer() {
-  const endpoint = location.protocol === "file:" ? "http://127.0.0.1:5173/api/refresh" : "/api/refresh";
+  const endpoint = apiEndpoint("/api/refresh");
   const response = await fetch(endpoint);
   const payload = await response.json();
 
   if (!response.ok) throw new Error(payload.error || "Не получилось обновить список.");
   return payload;
+}
+
+function apiEndpoint(path) {
+  return location.protocol === "file:" ? `http://127.0.0.1:5173${path}` : path;
+}
+
+async function ensureRentalGenres() {
+  if (state.rental.genresLoaded || state.rental.genresLoading) return;
+  state.rental.genresLoading = true;
+  state.rental.errorCode = null;
+  state.rental.status = "Загружаю жанры из TMDb.";
+  render();
+
+  try {
+    const payload = await fetchJson(apiEndpoint("/api/rental/genres?mediaType=movie"));
+    state.rental.genres = payload.genres || [];
+    state.rental.genresLoaded = true;
+    state.rental.status = state.rental.genres.length
+      ? "Выбери жанр, затем при желании уточни актёра или актрису."
+      : "TMDb не вернул жанры. Можно попробовать обновить позже.";
+  } catch (error) {
+    state.rental.errorCode = error?.code || null;
+    state.rental.status = rentalErrorMessage(error);
+  } finally {
+    state.rental.genresLoading = false;
+    render();
+  }
+}
+
+async function searchRentalPeople(query) {
+  const value = query.trim();
+  state.rental.selectedPerson = null;
+  state.rental.people = [];
+  state.rental.errorCode = null;
+
+  if (value.length < 2) {
+    state.rental.peopleLoading = false;
+    state.rental.status = "Можно собрать пул только по жанру или уточнить актёра через поиск.";
+    render();
+    return;
+  }
+
+  state.rental.peopleLoading = true;
+  state.rental.status = "Ищу человека в TMDb.";
+  render();
+
+  try {
+    const payload = await fetchJson(apiEndpoint(`/api/rental/people?q=${encodeURIComponent(value)}`));
+    if (rentalPersonInput.value.trim() !== value) return;
+    state.rental.people = payload.results || [];
+    state.rental.status = state.rental.people.length
+      ? "Выбери конкретного человека из подсказок или собери кассеты только по жанру."
+      : "Никого не нашли. Можно собрать кассеты только по жанру.";
+  } catch (error) {
+    state.rental.errorCode = error?.code || null;
+    state.rental.status = rentalErrorMessage(error);
+  } finally {
+    state.rental.peopleLoading = false;
+    render();
+  }
+}
+
+async function buildRentalSession() {
+  const genreTmdbId = Number(rentalGenreSelect.value);
+  if (!genreTmdbId) {
+    state.rental.status = "Сначала выбери жанр.";
+    render();
+    return;
+  }
+
+  state.rental.loading = true;
+  state.rental.errorCode = null;
+  state.rental.status = "Собираю полный пул кассет. Это может занять несколько секунд.";
+  render();
+
+  try {
+    const payload = await fetchJson(apiEndpoint("/api/rental/sessions"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        genreTmdbIds: [genreTmdbId],
+        actorTmdbId: state.rental.selectedPerson?.tmdbId || null,
+        includeTv: rentalIncludeTv.checked
+      })
+    });
+    state.rental.session = payload;
+    state.rental.status = payload.totalCount
+      ? `Собрано ${payload.totalCount} ${tapeWord(payload.totalCount)}.`
+      : "По этому запросу кассет не нашли.";
+  } catch (error) {
+    state.rental.errorCode = error?.code || null;
+    state.rental.status = rentalErrorMessage(error);
+  } finally {
+    state.rental.loading = false;
+    render();
+  }
+}
+
+function clearRentalForm() {
+  rentalGenreSelect.value = "";
+  rentalPersonInput.value = "";
+  rentalIncludeTv.checked = false;
+  state.rental.people = [];
+  state.rental.selectedPerson = null;
+  state.rental.session = null;
+  state.rental.errorCode = null;
+  state.rental.status = "Можно собрать пул только по жанру или уточнить актёра через поиск.";
+  render();
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.message || payload.error || "Запрос не удался.");
+    error.code = payload.error;
+    throw error;
+  }
+  return payload;
+}
+
+function rentalErrorMessage(error) {
+  if (error?.code === "TMDB_TOKEN_MISSING") {
+    return "Нет ключа TMDb. Настрой TMDB_API_TOKEN на локальном сервере.";
+  }
+  if (error instanceof TypeError) {
+    return "Локальный сервер не отвечает. Запусти start-kinoauk.cmd и открой http://127.0.0.1:5173";
+  }
+  return error?.message || "Прокат не смог выполнить запрос.";
 }
 
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -1290,15 +1786,24 @@ document.querySelectorAll(".tab").forEach((tab) => {
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.classList.toggle("active", panel.id === tab.id.replace("Tab", "Panel"));
     });
+    const activePanel = document.querySelector(".tab-panel.active");
+    if (motionAnimate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      motionAnimate(activePanel, { opacity: [0, 1], transform: ["translateX(12px)", "translateX(0)"] }, {
+        duration: .24,
+        ease: "ease-out"
+      });
+    }
     if (tab.id === "genreTab") {
-      genrePanelOpen = true;
       genreDraft = [...state.genreFilter];
       renderGenreAuction();
     }
   });
 });
 
-const customButtonSoundSelector = "#spinButton, #soundButton, #genreAllButton, #genreApplyButton, .genre-chip, .stake-button";
+shelfModeButton.addEventListener("click", () => setAppMode("shelf"));
+rentalModeButton.addEventListener("click", () => setAppMode("rental"));
+
+const customButtonSoundSelector = "#spinButton, #soundButton, #autoThemeButton, #dayThemeButton, #nightThemeButton, #shelfModeButton, #rentalModeButton, #genreAllButton, #genreApplyButton, #rentalBuildPoolButton, #rentalClearButton, .rental-person-suggestion, .genre-chip, .stake-button";
 
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
@@ -1309,3 +1814,4 @@ document.addEventListener("click", (event) => {
 
 importFromHash();
 render();
+if (state.mode === "rental") ensureRentalGenres();

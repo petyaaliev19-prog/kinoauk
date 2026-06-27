@@ -1,1 +1,10 @@
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+.env
+data/*.sqlite
+data/*.sqlite-*
+debug.log
 kinoauk-server.pid
+tmp/

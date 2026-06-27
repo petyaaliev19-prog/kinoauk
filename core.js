@@ -162,6 +162,14 @@
     return segments.find((segment) => pointerOffset >= segment.start && pointerOffset < segment.end)?.movie || segments[segments.length - 1].movie;
   }
 
+  function rotationToLandSegmentAtPointer(segment, currentRotation = 0, turns = 0) {
+    if (!segment) return currentRotation;
+    const fullTurn = Math.PI * 2;
+    const targetRotation = mod(-(segment.start + segment.angle / 2), fullTurn);
+    const wholeTurns = Math.max(0, Math.floor(Number(turns) || 0));
+    return currentRotation + wholeTurns * fullTurn + mod(targetRotation - currentRotation, fullTurn);
+  }
+
   function pickMovieByOdds(odds, random = Math.random) {
     if (!odds?.length) return null;
     const roll = Math.min(.999999999, Math.max(0, Number(random()) || 0));
@@ -179,18 +187,18 @@
 
   function winnerEffectType(movie) {
     if (!movie) return "default";
-    const signal = `${movie.title || ""} ${movie.genre || ""}`.toLowerCase();
+    const genre = String(movie.genre || "").toLowerCase();
 
-    if (/(ужас|хоррор|пила|смерт|дьявол|прокля|псих|монстр|зомби|кошмар|ад|ночь|вампир|одержим)/i.test(signal)) {
+    if (/(ужас|хоррор)/i.test(genre)) {
       return "horror";
     }
-    if (/(драма|мелодрам|трагед|слез|судьб|одиночеств)/i.test(signal)) {
+    if (/(драма|мелодрам)/i.test(genre)) {
       return "drama";
     }
-    if (/(боевик|экшен|войн|бой|стрел|оруж|погон|гангстер|кримин|полиц|драйв|ярост|уби)/i.test(signal)) {
+    if (/(боевик|экшен)/i.test(genre)) {
       return "action";
     }
-    if (/(комед|юмор|смеш|парод|приключ|семейн)/i.test(signal)) {
+    if (/(комед|юмор)/i.test(genre)) {
       return "comedy";
     }
 
@@ -234,6 +242,7 @@
     movieKey,
     normalizeMovie,
     pickMovieByOdds,
+    rotationToLandSegmentAtPointer,
     wheelSegments,
     winnerEffectType
   };

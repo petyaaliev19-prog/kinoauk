@@ -5,10 +5,20 @@
   "description": "Домашний VHS-аукцион фильмов для Максима и Оли.",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test",
-    "check": "node --check app.js && node --check core.js && node --check server.js && node --test"
+    "test": "node --test test/*.test.js",
+    "test:ui": "playwright test",
+    "test:all": "node --test test/*.test.js && playwright test",
+    "check": "node --check app.js && node --check core.js && node --check server.js && node --check rental-db.js && node --check tmdb-client.js && node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/rubik-mono-one": "^5.2.8",
+    "motion": "^12.40.0"
   }
 }

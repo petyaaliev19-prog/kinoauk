@@ -33,45 +33,54 @@ body {
 
 .poster-backdrop {
   position: fixed;
-  inset: -42px;
+  inset: 0;
   z-index: -2;
-  display: grid;
-  grid-template-columns: repeat(12, minmax(90px, 1fr));
-  grid-auto-rows: 148px;
-  gap: 12px;
-  opacity: .62;
-  filter: saturate(1.45) contrast(1.12);
+  background: url("assets/backdrop/vhs-night-lounge.png") center / cover no-repeat;
+  opacity: 1;
+  filter: saturate(1.08) contrast(1.03) brightness(.95);
   overflow: hidden;
-  transform: rotate(-4deg) scale(1.08);
+  transition: background-image .45s ease, filter .45s ease;
 }
 
 .poster-backdrop::after {
   content: "";
   position: fixed;
-  inset: -80px;
-  background:
-    radial-gradient(circle at 34% 44%, rgba(5, 10, 12, .32), transparent 34%),
-    linear-gradient(90deg, rgba(4, 20, 19, .55), rgba(18, 10, 28, .66) 42%, rgba(55, 9, 28, .68));
+  inset: 0;
+  background: transparent;
   pointer-events: none;
 }
 
-.poster-tile {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-  background-position: center;
-  background-size: cover;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .36);
-  overflow: hidden;
-  transform: rotate(var(--tilt));
+body[data-theme="day"] {
+  color-scheme: light;
+  --bg: #e8d4a6;
+  --panel: #3d3427;
+  --panel-2: #514430;
+  --text: #fff5da;
+  --muted: #dcc9a5;
+  --line: #a98047;
+  --accent: #ffd455;
+  --accent-2: #9ce0c5;
+  --accent-3: #f1a36f;
+  --hot: #ef786f;
 }
 
-.poster-tile::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, .48));
+body[data-theme="day"] .poster-backdrop {
+  background-image: url("assets/backdrop/tv-day-lounge.png");
+  filter: saturate(.88) contrast(.94) brightness(.9);
+}
+
+body[data-theme="day"] .wheel-panel,
+body[data-theme="day"] .side-panel {
+  border-color: rgba(255, 232, 172, .36);
+  background:
+    linear-gradient(135deg, rgba(119, 83, 37, .72), rgba(73, 51, 32, .76)),
+    rgba(48, 37, 25, .64);
+  box-shadow: 0 24px 70px rgba(69, 38, 12, .26), inset 0 0 0 1px rgba(255, 247, 219, .07);
+}
+
+body[data-theme="day"] input,
+body[data-theme="day"] textarea {
+  background: rgba(48, 37, 25, .9);
 }
 
 button,
@@ -138,11 +147,12 @@ textarea {
   border-radius: 8px;
   background:
     linear-gradient(135deg, rgba(0, 255, 209, .035), rgba(255, 45, 149, .04)),
-    rgba(14, 16, 20, .86);
+    rgba(14, 16, 20, .66);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, .04),
     0 24px 70px rgba(0, 0, 0, .42),
     0 0 42px rgba(0, 255, 209, .08);
+  backdrop-filter: blur(3px);
 }
 
 .wheel-panel {
@@ -237,7 +247,63 @@ body.dictatorship-active .dictatorship-banner {
 
 .top-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.theme-switch {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 11;
+  display: inline-flex;
+  min-height: 34px;
+  padding: 3px;
+  border: 1px solid rgba(244, 197, 66, .34);
+  border-radius: 999px;
+  background: rgba(10, 12, 16, .78);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .3), inset 0 0 12px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(8px);
+}
+
+.theme-option {
+  min-height: 26px;
+  min-width: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(246, 242, 234, .64);
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.theme-option:not(:first-child) {
+  font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.theme-option:hover {
+  transform: none;
+  border: 0;
+}
+
+.theme-option[aria-pressed="true"] {
+  background: linear-gradient(135deg, rgba(255, 221, 81, .92), rgba(49, 198, 167, .72));
+  color: #16130f;
+  box-shadow: 0 0 14px rgba(244, 197, 66, .28);
+}
+
+body[data-theme="day"] .theme-switch {
+  border-color: rgba(255, 238, 188, .48);
+  background: rgba(81, 58, 31, .78);
+}
+
+body[data-theme="day"] .theme-option {
+  color: rgba(255, 245, 218, .75);
 }
 
 .sound-on {
@@ -291,6 +357,10 @@ body.dictatorship-active .dictatorship-banner {
   transform: rotate(180deg);
 }
 
+.genre-auction-toggle::after {
+  content: none;
+}
+
 .genre-auction-kicker,
 .genre-auction-count {
   color: var(--muted);
@@ -314,7 +384,6 @@ body.dictatorship-active .dictatorship-banner {
   align-self: end;
   grid-row: 2;
   grid-column: 2;
-  padding-right: 24px;
   letter-spacing: .02em;
 }
 
@@ -359,9 +428,11 @@ body.dictatorship-active .dictatorship-banner {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-height: 142px;
-  overflow-y: auto;
-  padding-right: 3px;
+  /* Let the genre panel grow into the unused space instead of creating a
+     second, tiny scrollbar inside it. */
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .genre-chip {
@@ -562,9 +633,27 @@ body.dictatorship-active .dictatorship-banner {
 .genre-stage-effects {
   position: fixed;
   inset: 0;
-  z-index: 3;
+  z-index: 12;
   overflow: hidden;
   pointer-events: none;
+}
+
+.genre-rain-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  filter: saturate(.8) drop-shadow(0 0 3px rgba(176, 211, 255, .28));
+  animation: genre-rain-fade 2.6s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes genre-rain-fade {
+  0% { opacity: 0; }
+  14% { opacity: 1; }
+  82% { opacity: .88; }
+  100% { opacity: 0; }
 }
 
 .genre-stage-effect {
@@ -601,19 +690,6 @@ body.dictatorship-active .dictatorship-banner {
 
 .genre-stage-action::before { top: 38vh; }
 .genre-stage-action::after { top: calc(38vh + 11px); animation-delay: .08s; }
-
-.genre-stage-drama::before {
-  content: "";
-  position: absolute;
-  top: 18vh;
-  left: max(8px, calc((100vw - 1280px) / 2 - 310px));
-  width: 320px;
-  height: 460px;
-  background: repeating-linear-gradient(104deg, transparent 0 13px, rgba(177, 211, 255, .3) 14px 15px, transparent 16px 28px);
-  opacity: 0;
-  transform: translateY(-18px);
-  animation: genre-drama-window 1s ease-out forwards;
-}
 
 .genre-stage-comedy::before {
   content: "";
@@ -667,12 +743,6 @@ body.dictatorship-active .dictatorship-banner {
   0% { opacity: 0; transform: translateX(-30vw); }
   16% { opacity: 1; }
   100% { opacity: 0; transform: translateX(64vw); }
-}
-
-@keyframes genre-drama-window {
-  0% { opacity: 0; transform: translateY(-18px); }
-  32% { opacity: .46; }
-  100% { opacity: 0; transform: translateY(34px); }
 }
 
 @keyframes genre-comedy-frame {
@@ -737,6 +807,23 @@ body.dictatorship-active .dictatorship-banner {
   max-width: 760px;
   aspect-ratio: 1;
   margin: 16px auto;
+}
+
+.wheel-osd {
+  position: fixed;
+  top: 8px;
+  right: auto;
+  bottom: auto;
+  left: 8px;
+  z-index: 8;
+  color: rgba(255, 243, 215, .88);
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-shadow: 0 0 8px rgba(255, 184, 74, .35);
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(255, 184, 74, .32);
 }
 
 canvas {
@@ -1407,7 +1494,7 @@ canvas {
     repeating-linear-gradient(0deg, rgba(255, 255, 255, .026) 0 1px, transparent 1px 5px),
     #17130f;
   box-shadow: 0 28px 90px rgba(0, 0, 0, .62), 0 0 58px rgba(255, 184, 74, .18);
-  animation: modal-premiere-in .42s cubic-bezier(.16, .9, .28, 1);
+  animation: none;
 }
 
 .winner-modal-card::before {
@@ -1681,17 +1768,12 @@ body {
 }
 
 body::before {
-  content: attr(data-vhs-osd);
+  content: "";
   position: fixed;
-  top: 18px;
+  top: auto;
+  bottom: 22px;
   left: 22px;
   z-index: 7;
-  color: rgba(255, 243, 215, .78);
-  font-family: "Courier New", monospace;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-shadow: 0 0 8px rgba(255, 184, 74, .45);
   pointer-events: none;
 }
 
@@ -1843,6 +1925,10 @@ textarea::placeholder {
   overflow-wrap: anywhere;
 }
 
+.movie-item.empty-state::after {
+  content: none;
+}
+
 .wheel-center {
   background:
     radial-gradient(circle at 35% 25%, rgba(255, 231, 93, .15), transparent 45%),
@@ -1862,8 +1948,13 @@ body.dictatorship-active .wheel-panel {
 body.dictatorship-active .wheel-panel::after {
   content: "NO REVOTE";
   position: absolute;
+  inset: auto;
   right: 28px;
-  bottom: 190px;
+  top: 302px;
+  bottom: auto;
+  left: auto;
+  border: 0;
+  box-shadow: none;
   z-index: 4;
   color: rgba(255, 231, 93, .78);
   font-family: "Courier New", monospace;
@@ -2559,4 +2650,822 @@ body.dictatorship-active .primary:disabled {
   .import-actions button {
     width: 100%;
   }
+}
+
+/* Home video library refresh: worn plastic, paper labels, and a real shelf. */
+:root {
+  --bg: #1f1712;
+  --panel: #332820;
+  --panel-2: #44352a;
+  --text: #f2e5c9;
+  --muted: #c2af91;
+  --line: #766047;
+  --accent: #e5a94f;
+  --accent-2: #769c87;
+  --accent-3: #bd6f67;
+  --hot: #bb5f58;
+  --danger: #d36a59;
+}
+
+body {
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  background:
+    radial-gradient(ellipse at 50% -14%, rgba(245, 201, 119, .18), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(255, 238, 194, .025) 0 1px, transparent 1px 52px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .11) 0 2px, transparent 2px 48px),
+    linear-gradient(90deg, #17100d, #2a1e17 48%, #17100d);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .42;
+  background:
+    linear-gradient(104deg, transparent 0 22%, rgba(255, 239, 195, .025) 22.1% 22.3%, transparent 22.5% 100%),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 241, 208, .018) 3px 4px);
+  mix-blend-mode: screen;
+}
+
+.poster-backdrop {
+  opacity: .28;
+  filter: sepia(.55) saturate(.7) contrast(.9) brightness(.56);
+}
+
+.app {
+  gap: 14px;
+  width: min(1420px, calc(100vw - 28px));
+  height: calc(100vh - 28px);
+  margin: 14px auto;
+}
+
+.wheel-panel,
+.side-panel {
+  border: 2px solid #6e5942;
+  border-radius: 4px;
+  background:
+    linear-gradient(105deg, rgba(255, 237, 197, .06), transparent 16% 84%, rgba(0, 0, 0, .18)),
+    repeating-linear-gradient(0deg, rgba(255, 241, 208, .018) 0 1px, transparent 1px 5px),
+    #30251e;
+  box-shadow: 0 2px 0 #130e0b, 0 16px 34px rgba(0, 0, 0, .42), inset 0 0 0 1px rgba(255, 233, 188, .08);
+}
+
+.wheel-panel::after,
+.side-panel::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 229, 177, .1);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, .24);
+}
+
+.wheel-panel { padding: 22px; }
+.side-panel { position: relative; }
+
+h1,
+.winner-modal-copy h2 {
+  font-family: "Rubik Mono One", Impact, sans-serif;
+  font-weight: 400;
+  letter-spacing: -.055em;
+}
+
+h1 {
+  max-width: 720px;
+  color: #f3dfb5;
+  font-size: clamp(28px, 4vw, 49px);
+  text-shadow: 3px 3px 0 #2b1f17, 5px 5px 0 rgba(0, 0, 0, .32);
+}
+
+.eyebrow,
+.subtitle {
+  color: #dbb36e;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: .075em;
+}
+
+.dictatorship-banner {
+  border-color: #8c7254;
+  border-radius: 1px;
+  background: #201813;
+  color: #d4c3a4;
+  font-family: "IBM Plex Mono", monospace;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, .45);
+}
+
+button,
+input {
+  border-color: #796148;
+  border-radius: 3px;
+  background: #403126;
+  color: #f1e5cd;
+  box-shadow: inset 0 1px 0 rgba(255, 237, 199, .1), 0 2px 0 rgba(0, 0, 0, .28);
+}
+
+button:hover {
+  border-color: #d3a15a;
+  background: #4b392c;
+}
+
+.icon-button {
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #6c5540, #2a2019 68%);
+  color: #dfc28e;
+}
+
+.wheel-wrap {
+  padding: 16px;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, transparent 0 8px, rgba(255, 232, 183, .025) 9px 10px),
+    radial-gradient(circle at 36% 26%, rgba(255, 232, 183, .12), transparent 34%),
+    #19120f;
+  box-shadow: inset 0 0 0 10px #241a14, inset 0 0 0 12px #6a533d, 0 18px 34px rgba(0, 0, 0, .38);
+}
+
+.pointer {
+  border-top-color: #d7a85d;
+  filter: drop-shadow(0 3px 0 #271b13) drop-shadow(0 5px 9px rgba(0, 0, 0, .5));
+}
+
+.wheel-center {
+  border: 5px solid #221914;
+  background: radial-gradient(circle at 36% 30%, #6a5138, #2c2119 68%);
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 172, .2), 0 4px 10px rgba(0, 0, 0, .4);
+}
+
+.wheel-center small,
+.movie-chance,
+.movie-meta,
+.auction-divider,
+.winner p,
+.winner::after { font-family: "IBM Plex Mono", monospace; }
+
+.primary {
+  border: 1px solid #d1a25e;
+  background: linear-gradient(180deg, #e7be75, #b77b3f);
+  color: #281c13;
+  box-shadow: inset 0 1px 0 rgba(255, 247, 217, .65), 0 3px 0 #65411f, 0 8px 16px rgba(0, 0, 0, .24);
+}
+
+.tabs {
+  position: relative;
+  z-index: 1;
+  border-bottom-color: #6e5942;
+  background: #231a14;
+}
+
+.tab {
+  min-height: 51px;
+  color: #b6a184;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.tab.active {
+  color: #2b1f16;
+  background: #d6b477;
+  box-shadow: inset 0 -4px 0 #a46c3a;
+}
+
+.movie-list { gap: 7px; }
+
+.movie-item {
+  position: relative;
+  min-height: 74px;
+  border-color: #6b5845;
+  border-radius: 2px 7px 7px 2px;
+  background:
+    linear-gradient(90deg, #6c5038 0 7px, transparent 7px),
+    linear-gradient(100deg, rgba(255, 235, 191, .08), transparent 35%),
+    #382b22;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 237, 201, .07);
+}
+
+.movie-item::after {
+  content: none;
+  position: absolute;
+  right: 116px;
+  top: 8px;
+  width: 32px;
+  height: 15px;
+  opacity: .42;
+  background: repeating-linear-gradient(90deg, #e0c899 0 2px, transparent 2px 5px);
+  transform: rotate(-1.5deg);
+  pointer-events: none;
+}
+
+.movie-poster-slot {
+  border-radius: 2px;
+  background: #221914;
+  box-shadow: inset 0 0 0 2px #756049;
+}
+
+.movie-title-main { color: #f5e7ce; }
+.movie-chance { color: #b9d0a5; }
+
+.stake-button {
+  border: 2px solid #9a8060;
+  background: #2b211a;
+  color: #e3ca9f;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .34);
+}
+
+.stake-max.active { border-color: #8dad86; background: #3c5544; color: #ebf0d1; box-shadow: 0 0 0 2px rgba(141, 173, 134, .17); }
+.stake-olya.active { border-color: #d78979; background: #693c36; color: #ffe2d7; box-shadow: 0 0 0 2px rgba(215, 137, 121, .17); }
+
+.winner {
+  border-color: #896844;
+  border-left-color: #d6ab64;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(229, 190, 116, .18), transparent 56%), #2b2019;
+  box-shadow: 0 3px 0 #140f0b, inset 0 0 0 1px rgba(255, 231, 180, .09);
+}
+
+.winner::after { content: "ВИДЕОТЕКА МАКС + ОЛЯ"; color: rgba(245, 224, 183, .45); }
+
+.genre-auction-toggle,
+.genre-auction-panel,
+.import-card {
+  border-color: #705b45;
+  border-radius: 2px;
+  background: #342820;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 193, .07);
+}
+
+.winner-modal {
+  background: rgba(20, 14, 10, .84);
+}
+
+.winner-modal-card {
+  border-color: #9b774c;
+  border-left-color: #d7af68;
+  border-radius: 2px;
+  background: linear-gradient(102deg, rgba(237, 205, 144, .17), transparent 48%), #33261d;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 235, 193, .08);
+}
+
+.winner-modal-label {
+  border-radius: 1px;
+  color: #d68164;
+  background: #2a1b15;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.winner-modal-copy h2 {
+  color: #f3e0ba;
+  font-size: clamp(25px, 4vw, 47px);
+  text-shadow: 3px 3px 0 #21160f;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* Room light: keep the generated interior visible; interface contrast comes
+   from its panels, not from a dark veil over the entire scene. */
+.poster-backdrop {
+  z-index: 1;
+  opacity: 1;
+  filter: none;
+  pointer-events: none;
+}
+
+.poster-backdrop::after { background: transparent; }
+
+body[data-theme="day"] .poster-backdrop {
+  filter: none;
+}
+
+body::after {
+  background: none;
+  mix-blend-mode: normal;
+}
+
+.app { z-index: 2; }
+
+.theme-switch {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 11;
+  background: rgba(27, 21, 16, .8);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .32), inset 0 0 12px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(8px);
+}
+
+.theme-option { min-width: 30px; padding: 0 8px; }
+.theme-option:not(:first-child) { font-family: "Segoe UI Symbol", "Segoe UI", sans-serif; font-size: 16px; line-height: 1; }
+
+/* The mascot and its cabinet are now painted into the room backgrounds. Keep
+   the speech node in the DOM for a later use, without rendering the old UI prop. */
+.mascot-stage { display: none; }
+
+/* The window owns the left side of the room; the video-deck interface lives
+   beside it rather than covering the scene. */
+@media (min-width: 1100px) {
+  .app {
+    grid-template-columns: minmax(470px, 1fr) minmax(400px, 470px);
+    width: min(1100px, calc(100vw - 36px));
+    margin: 14px 22px 14px auto;
+  }
+}
+
+/* A small video-room corner: the mascot, its speech bubble, and its cabinet
+   move as one object beside the wheel. */
+@media (min-width: 1241px) {
+  .mascot-stage {
+    left: calc(100vw - min(1100px, calc(100vw - 36px)) - 222px);
+    top: auto;
+    bottom: 17vh;
+    width: 230px;
+    height: 340px;
+    transform: none;
+    z-index: 1;
+  }
+}
+
+.mascot-speech {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.mascot-speech::after {
+  right: auto;
+  left: calc(50% - 7px);
+}
+
+.mascot-speech::before {
+  right: auto;
+  left: calc(50% + 12px);
+}
+
+.mascot-stand {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 0;
+  width: 224px;
+  height: 68px;
+  border: 3px solid #23150d;
+  border-radius: 4px 4px 2px 2px;
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(26, 14, 8, .66) 48% 52%, transparent 52%),
+    linear-gradient(180deg, rgba(255, 230, 165, .2), transparent 12%),
+    repeating-linear-gradient(90deg, #4f2d17 0 8px, #653c1d 8px 13px, #412411 13px 21px);
+  box-shadow: 0 10px 0 #170e09, 0 18px 24px rgba(0, 0, 0, .42), inset 0 0 0 2px rgba(255, 223, 158, .12);
+  transform: translateX(-50%);
+}
+
+.mascot-stand::before,
+.mascot-stand::after {
+  content: "";
+  position: absolute;
+  top: 27px;
+  width: 12px;
+  height: 5px;
+  border-radius: 999px;
+  background: #d2a85a;
+  box-shadow: 0 1px 0 #2a160b;
+}
+
+.mascot-stand::before { left: 45px; }
+.mascot-stand::after { right: 45px; }
+
+.mascot-vhs {
+  position: absolute;
+  left: 20px;
+  top: -18px;
+  width: 74px;
+  height: 20px;
+  border: 2px solid #15100d;
+  border-radius: 3px 3px 1px 1px;
+  background:
+    linear-gradient(90deg, transparent 0 16px, #c89a50 16px 56px, transparent 56px),
+    linear-gradient(180deg, #28201a 0 7px, #17120f 7px);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, .28);
+}
+
+.mascot-vhs::before,
+.mascot-vhs::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  width: 9px;
+  height: 5px;
+  border-radius: 999px;
+  background: #0d0b09;
+}
+
+.mascot-vhs::before { left: 8px; }
+.mascot-vhs::after { right: 8px; }
+
+.mascot-lamp {
+  position: absolute;
+  right: 24px;
+  top: -26px;
+  width: 23px;
+  height: 31px;
+  border: 2px solid #2d1b0e;
+  border-radius: 10px 10px 4px 4px;
+  background: linear-gradient(90deg, #b77632, #ffe2a0 48%, #b77632);
+  box-shadow: 0 0 14px rgba(255, 185, 82, .18), 0 3px 0 #2b180c;
+}
+
+.family-mascot {
+  bottom: 24px;
+  width: 188px;
+  animation: none;
+}
+
+body[data-theme="day"] .family-mascot {
+  --mascot-glow: drop-shadow(0 10px 12px rgba(37, 26, 15, .32));
+  filter: var(--mascot-glow);
+}
+
+body[data-theme="day"] .mascot-stand {
+  filter: brightness(1.08) saturate(.8);
+}
+
+/* The menu becomes the labelled front of a home-video deck. */
+.side-panel .tabs {
+  margin: 10px 10px 0;
+  border: 2px solid #5b4533;
+  border-radius: 4px 4px 0 0;
+  background: #1e1611;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 187, .1), 0 3px 0 rgba(18, 11, 7, .45);
+}
+
+.side-panel .tab {
+  position: relative;
+  min-height: 47px;
+  color: #c4ad89;
+  text-shadow: 0 1px 0 #130d09;
+}
+
+.side-panel .tab + .tab { border-left: 1px solid rgba(255, 224, 169, .14); }
+
+.side-panel .tab.active {
+  color: #2d1d12;
+  background: linear-gradient(180deg, #efd08a, #c38a49);
+  box-shadow: inset 0 2px 0 rgba(255, 249, 214, .72), inset 0 -4px 0 #875126;
+}
+
+.side-panel .tab-panel {
+  margin: 0 10px 10px;
+  border: 1px solid rgba(225, 187, 123, .24);
+  border-top: 0;
+  background: linear-gradient(105deg, rgba(255, 231, 182, .035), transparent 48%), rgba(35, 25, 18, .54);
+}
+
+.theme-switch {
+  right: auto;
+  left: 22px;
+  bottom: 22px;
+}
+
+@keyframes mascot-speech-pop {
+  0% { opacity: 0; transform: translateX(-50%) translateY(18px) scale(.56) rotate(-3deg); filter: blur(2px); }
+  48% { opacity: 1; transform: translateX(-50%) translateY(-3px) scale(1.045) rotate(.4deg); filter: blur(0); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1) rotate(0); filter: blur(0); }
+}
+
+/* Two different rooms in the same video deck: the existing personal shelf
+   and the future external rental catalog. The catalog is intentionally a
+   static prototype until its data contract is approved. */
+.mode-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  margin-top: 12px;
+  border: 1px solid #745438;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #17100c;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 240, 203, .08);
+}
+
+.mode-option {
+  min-height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #b8a182;
+  font: 700 10px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.mode-option + .mode-option { border-left: 1px solid rgba(255, 225, 174, .16); }
+
+.mode-option.active {
+  color: #2b1b0f;
+  background: linear-gradient(180deg, #f1d38f, #bd803e);
+  box-shadow: inset 0 1px 0 rgba(255, 251, 221, .72);
+}
+
+.rental-stage {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: stretch;
+  gap: 12px;
+  min-height: min(560px, 56vh);
+  margin: 8px 0;
+  padding: clamp(20px, 3vw, 34px);
+  overflow: hidden;
+  border: 1px solid rgba(240, 198, 114, .42);
+  border-radius: 3px;
+  background:
+    linear-gradient(100deg, rgba(255, 215, 132, .08), transparent 32%, rgba(77, 213, 183, .07)),
+    repeating-linear-gradient(0deg, rgba(255, 237, 194, .025) 0 1px, transparent 1px 5px),
+    #241910;
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 195, .05), inset 0 20px 60px rgba(0, 0, 0, .2);
+  text-align: left;
+}
+
+.rental-stage[hidden] { display: none; }
+
+.rental-stage::before,
+.rental-stage::after {
+  content: "";
+  position: absolute;
+  width: 142px;
+  height: 142px;
+  border: 1px solid rgba(235, 183, 91, .12);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.rental-stage::before { top: -87px; right: -60px; box-shadow: 0 0 0 18px rgba(235, 183, 91, .035), 0 0 0 36px rgba(235, 183, 91, .02); }
+.rental-stage::after { bottom: -92px; left: -60px; box-shadow: 0 0 0 18px rgba(84, 224, 189, .03); }
+
+.rental-kicker,
+.rental-note {
+  margin: 0;
+  color: #d6ac67;
+  font: 700 10px/1.3 "IBM Plex Mono", monospace;
+  letter-spacing: .12em;
+}
+
+.rental-stage h2 {
+  margin: 0;
+  color: #f5e1b4;
+  font-size: clamp(30px, 4.2vw, 52px);
+  letter-spacing: -.04em;
+  text-shadow: 3px 3px 0 #1a100b;
+}
+
+.rental-copy { max-width: 540px; margin: 0; color: #d1ba92; line-height: 1.55; }
+
+.rental-form {
+  display: grid;
+  grid-template-columns: minmax(145px, .8fr) minmax(220px, 1.2fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.rental-field,
+.rental-extra label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.rental-field span,
+.rental-extra span,
+.rental-checkbox,
+.rental-extra summary,
+.rental-status,
+.rental-actions button {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.rental-field span,
+.rental-extra span {
+  color: #b59262;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.rental-field select,
+.rental-field input,
+.rental-extra input {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid #73563b;
+  border-radius: 3px;
+  padding: 0 12px;
+  background: rgba(19, 13, 9, .74);
+  color: #fff0cc;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 188, .07);
+  font: 700 14px/1.2 "IBM Plex Mono", monospace;
+}
+
+.rental-field input:disabled,
+.rental-field select:disabled,
+.rental-extra input:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: #fff0cc;
+}
+
+.rental-field-wide { min-width: 0; }
+
+.rental-person-suggestions {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+}
+
+.rental-empty-hint {
+  margin: 0;
+  border: 1px dashed rgba(228, 188, 121, .2);
+  border-radius: 3px;
+  padding: 10px 12px;
+  background: rgba(19, 13, 9, .38);
+  color: #9b8367;
+  font: 400 10px/1.45 "IBM Plex Mono", monospace;
+}
+
+.rental-person-suggestion {
+  display: grid;
+  grid-template-columns: minmax(118px, .38fr) 1fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid rgba(228, 188, 121, .22);
+  border-radius: 3px;
+  padding: 8px 10px;
+  background:
+    linear-gradient(90deg, rgba(235, 190, 111, .07), transparent 72%),
+    rgba(19, 13, 9, .54);
+  color: #d4bea0;
+  text-align: left;
+}
+
+.rental-person-suggestion.active {
+  border-color: rgba(245, 211, 137, .72);
+  background:
+    linear-gradient(90deg, rgba(245, 211, 137, .17), transparent 76%),
+    rgba(25, 17, 11, .82);
+  box-shadow: inset 3px 0 0 #e6bc61;
+}
+
+.rental-person-suggestion strong { color: #fff0cc; font: 700 13px/1.2 "IBM Plex Mono", monospace; }
+.rental-person-suggestion small { color: #ae9675; font: 400 10px/1.35 "IBM Plex Mono", monospace; }
+
+.rental-checkbox {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  min-height: 30px;
+  color: #e0c79a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rental-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #e1b75d;
+}
+
+.rental-extra {
+  grid-column: 1 / -1;
+  border: 1px solid #73563b;
+  border-radius: 3px;
+  padding: 10px;
+  background: rgba(19, 13, 9, .7);
+}
+
+.rental-extra summary {
+  cursor: default;
+  color: #d6ac67;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.rental-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rental-status {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 5px;
+  border: 1px dashed rgba(232, 192, 116, .32);
+  border-radius: 3px;
+  padding: 12px;
+  background: rgba(52, 35, 22, .42);
+}
+
+.rental-status strong { color: #f2d18c; font-size: 12px; }
+.rental-status span { color: #bca683; font-size: 10px; line-height: 1.45; }
+
+.rental-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(160px, .9fr) minmax(120px, .55fr);
+  gap: 9px;
+}
+
+.rental-actions button:disabled { opacity: .72; cursor: default; }
+
+body[data-mode="rental"] .wheel-wrap,
+body[data-mode="rental"] .controls,
+body[data-mode="rental"] .winner { display: none; }
+
+body[data-mode="rental"] .wheel-panel { justify-content: flex-start; }
+body[data-mode="rental"] .side-panel .tabs,
+body[data-mode="rental"] .side-panel .tab-panel { display: none; }
+
+.rental-list-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 14px;
+  min-height: 0;
+  margin: 10px;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(225, 187, 123, .24);
+  border-radius: 2px;
+  background:
+    linear-gradient(105deg, rgba(255, 231, 182, .05), transparent 48%),
+    rgba(35, 25, 18, .76);
+}
+
+.rental-list-panel[hidden] { display: none; }
+
+.rental-list-heading { display: grid; gap: 5px; }
+.rental-list-heading span { color: #d6ac67; font: 700 10px/1 "IBM Plex Mono", monospace; letter-spacing: .12em; }
+.rental-list-heading strong { color: #f5e1b4; font-size: 19px; }
+.rental-list-heading small { color: #ae9675; font: 400 11px/1.35 "IBM Plex Mono", monospace; }
+
+.rental-tape-list {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+}
+
+.rental-tape-list li {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 49px;
+  border: 1px solid rgba(228, 188, 121, .2);
+  background: linear-gradient(90deg, rgba(235, 190, 111, .07), transparent 72%);
+  color: #d4bea0;
+}
+
+.rental-tape-list .rental-empty-row {
+  grid-template-columns: 1fr;
+  padding: 14px;
+  color: #9b8367;
+}
+
+.rental-tape-list span { align-self: stretch; display: grid; place-items: center; border-right: 1px solid rgba(228, 188, 121, .16); color: #c99550; font: 700 10px/1 "IBM Plex Mono", monospace; }
+.rental-tape-list strong { padding: 0 12px; font: 700 12px/1.3 "IBM Plex Mono", monospace; }
+.rental-tape-list small { padding-right: 12px; color: #9b8367; font: 700 9px/1.2 "IBM Plex Mono", monospace; text-transform: uppercase; }
+.rental-machine-note {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(228, 188, 121, .22);
+  padding: 11px;
+  background: rgba(18, 12, 8, .42);
+}
+
+.rental-machine-note span { color: #c99550; font: 700 9px/1 "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.rental-machine-note strong { color: #f2d18c; font: 700 12px/1.2 "IBM Plex Mono", monospace; }
+.rental-machine-note small { color: #9b8367; font: 400 10px/1.35 "IBM Plex Mono", monospace; }
+.rental-list-footnote { margin: 0; color: #937b60; font: 400 10px/1.4 "IBM Plex Mono", monospace; }
+
+@media (max-width: 640px) {
+  .rental-form,
+  .rental-extra-grid,
+  .rental-actions,
+  .rental-person-suggestion,
+  .rental-tape-list li { grid-template-columns: 1fr; }
+  .rental-stage { min-height: 430px; }
+  .rental-tape-list span { min-height: 28px; border-right: 0; border-bottom: 1px solid rgba(228, 188, 121, .16); }
+  .rental-tape-list small { padding: 0 12px 10px; }
 }
