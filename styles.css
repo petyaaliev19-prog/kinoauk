@@ -3258,21 +3258,135 @@ body[data-theme="day"] .mascot-stand {
 
 .rental-form {
   display: grid;
-  grid-template-columns: minmax(145px, .8fr) minmax(220px, 1.2fr);
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   width: 100%;
   margin-top: 6px;
 }
 
+.rental-console {
+  position: relative;
+  border: 1px solid rgba(209, 161, 90, .42);
+  border-radius: 4px;
+  padding: 14px;
+  background:
+    linear-gradient(112deg, rgba(255, 236, 195, .055), transparent 36% 72%, rgba(0, 0, 0, .18)),
+    repeating-linear-gradient(0deg, rgba(255, 241, 208, .018) 0 1px, transparent 1px 5px),
+    rgba(22, 15, 10, .62);
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 195, .045), inset 0 24px 60px rgba(0, 0, 0, .18);
+}
+
+.rental-console-section {
+  position: relative;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.rental-console-section + .rental-console-section {
+  border-top: 1px solid rgba(222, 178, 101, .18);
+  padding-top: 12px;
+}
+
+.rental-console-label {
+  margin: 0;
+  color: #c79a57;
+  font: 800 9px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.rental-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(145px, .82fr) minmax(230px, 1.18fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.rental-filter-grid-compact {
+  grid-template-columns: minmax(170px, .9fr) minmax(120px, .55fr) minmax(150px, .7fr);
+}
+
 .rental-field,
-.rental-extra label {
+.rental-extra label,
+.rental-range-field {
   display: grid;
   gap: 7px;
   min-width: 0;
 }
 
+.rental-media-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid rgba(211, 161, 90, .55);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(255, 238, 194, .06), rgba(0, 0, 0, .12)),
+    rgba(19, 13, 9, .78);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 195, .08), 0 2px 0 rgba(0, 0, 0, .28);
+}
+
+.rental-media-toggle legend {
+  grid-column: 1 / -1;
+  margin: 0 0 7px;
+  padding: 0 3px;
+  color: #b59262;
+  font: 700 9px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.rental-media-toggle label {
+  position: relative;
+  min-width: 0;
+}
+
+.rental-media-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rental-media-toggle span {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border: 1px solid transparent;
+  color: #cdb48a;
+  font: 800 13px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.rental-media-toggle label:first-of-type span { border-radius: 2px 0 0 2px; }
+.rental-media-toggle label:last-of-type span { border-radius: 0 2px 2px 0; }
+
+.rental-media-toggle input:checked + span {
+  border-color: rgba(243, 205, 128, .78);
+  background: linear-gradient(180deg, #e7be75, #a96f38);
+  color: #261910;
+  box-shadow: inset 0 1px 0 rgba(255, 249, 219, .55), 0 2px 0 rgba(82, 52, 25, .7);
+}
+
+.rental-media-toggle input:focus-visible + span {
+  outline: 2px solid rgba(255, 226, 158, .72);
+  outline-offset: 2px;
+}
+
+.rental-media-toggle input:disabled + span {
+  cursor: default;
+  opacity: .62;
+}
+
 .rental-field span,
 .rental-extra span,
+.rental-range-field > span,
+.rental-media-toggle,
 .rental-checkbox,
 .rental-extra summary,
 .rental-status,
@@ -3281,7 +3395,8 @@ body[data-theme="day"] .mascot-stand {
 }
 
 .rental-field span,
-.rental-extra span {
+.rental-extra span,
+.rental-range-field > span {
   color: #b59262;
   font-size: 9px;
   font-weight: 700;
@@ -3291,7 +3406,9 @@ body[data-theme="day"] .mascot-stand {
 
 .rental-field select,
 .rental-field input,
-.rental-extra input {
+.rental-range-inputs input,
+.rental-extra input,
+.rental-extra select {
   min-height: 42px;
   width: 100%;
   border: 1px solid #73563b;
@@ -3305,12 +3422,62 @@ body[data-theme="day"] .mascot-stand {
 
 .rental-field input:disabled,
 .rental-field select:disabled,
-.rental-extra input:disabled {
+.rental-range-inputs input:disabled,
+.rental-extra input:disabled,
+.rental-extra select:disabled {
   opacity: 1;
   -webkit-text-fill-color: #fff0cc;
 }
 
 .rental-field-wide { min-width: 0; }
+
+.rental-range-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  min-width: 0;
+}
+
+.rental-console .rental-status {
+  border-style: solid;
+  border-color: rgba(232, 192, 116, .26);
+  background:
+    linear-gradient(90deg, rgba(235, 190, 111, .08), transparent 72%),
+    rgba(29, 20, 13, .64);
+}
+
+.rental-filter-summary {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(232, 192, 116, .3);
+  border-left: 4px solid #d6a45c;
+  border-radius: 3px;
+  padding: 10px 12px;
+  background:
+    linear-gradient(90deg, rgba(231, 190, 117, .16), transparent 66%),
+    repeating-linear-gradient(0deg, rgba(255, 241, 208, .025) 0 1px, transparent 1px 5px),
+    rgba(18, 12, 8, .72);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 195, .06);
+}
+
+.rental-filter-summary span {
+  color: #c99550;
+  font: 800 9px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.rental-filter-summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #ffedc4;
+  font: 800 13px/1.35 "IBM Plex Mono", monospace;
+}
+
+.rental-console .rental-actions {
+  border-top: 1px solid rgba(222, 178, 101, .18);
+  padding-top: 12px;
+}
 
 .rental-person-suggestions {
   grid-column: 1 / -1;
@@ -3330,13 +3497,13 @@ body[data-theme="day"] .mascot-stand {
 
 .rental-person-suggestion {
   display: grid;
-  grid-template-columns: minmax(118px, .38fr) 1fr;
-  gap: 10px;
+  grid-template-columns: 46px 1fr;
+  gap: 11px;
   align-items: center;
-  min-height: 42px;
+  min-height: 58px;
   border: 1px solid rgba(228, 188, 121, .22);
   border-radius: 3px;
-  padding: 8px 10px;
+  padding: 7px 10px 7px 8px;
   background:
     linear-gradient(90deg, rgba(235, 190, 111, .07), transparent 72%),
     rgba(19, 13, 9, .54);
@@ -3350,6 +3517,38 @@ body[data-theme="day"] .mascot-stand {
     linear-gradient(90deg, rgba(245, 211, 137, .17), transparent 76%),
     rgba(25, 17, 11, .82);
   box-shadow: inset 3px 0 0 #e6bc61;
+}
+
+.rental-person-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid rgba(228, 188, 121, .32);
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(235, 190, 111, .22), transparent 42%),
+    #18110d;
+  color: #e8c57d;
+  font: 900 12px/1 "IBM Plex Mono", monospace;
+}
+
+.rental-person-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(.18) contrast(1.05);
+}
+
+.rental-person-avatar.no-photo {
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 195, .05);
+}
+
+.rental-person-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .rental-person-suggestion strong { color: #fff0cc; font: 700 13px/1.2 "IBM Plex Mono", monospace; }
@@ -3421,6 +3620,7 @@ body[data-theme="day"] .mascot-stand {
 
 body[data-mode="rental"] .wheel-wrap,
 body[data-mode="rental"] .rental-machine-stage,
+body[data-mode="rental"] .rental-request-card,
 body[data-mode="rental"] .controls,
 body[data-mode="rental"] .winner { display: none; }
 
@@ -3429,10 +3629,80 @@ body[data-mode="rental"].rental-wheel-ready .controls,
 body[data-mode="rental"].rental-machine-ready .rental-machine-stage,
 body[data-mode="rental"].rental-machine-ready .controls { display: flex; }
 
+body[data-mode="rental"].rental-wheel-ready .rental-request-card,
+body[data-mode="rental"].rental-machine-ready .rental-request-card { display: grid; }
+
 body[data-mode="rental"].rental-wheel-ready .wheel-wrap {
   display: grid;
   margin-top: 8px;
   animation: rentalWheelIn .58s cubic-bezier(.18, .9, .16, 1) both;
+}
+
+.rental-request-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 14px;
+  width: 100%;
+  margin: 6px 0 12px;
+  border: 1px solid rgba(224, 180, 103, .44);
+  border-left: 5px solid #d5a15a;
+  border-radius: 4px;
+  padding: 12px 16px;
+  overflow: visible;
+  background:
+    linear-gradient(90deg, rgba(232, 184, 98, .18), transparent 38%),
+    repeating-linear-gradient(0deg, rgba(255, 241, 208, .022) 0 1px, transparent 1px 5px),
+    rgba(22, 15, 10, .78);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 195, .065), 0 12px 22px rgba(0, 0, 0, .18);
+  animation: rentalWheelIn .48s cubic-bezier(.18, .9, .16, 1) both;
+}
+
+.rental-request-card[hidden] { display: none; }
+
+.rental-request-card::after {
+  content: "";
+  position: absolute;
+  inset: 8px 12px auto auto;
+  width: 74px;
+  height: 18px;
+  border: 1px solid rgba(238, 199, 124, .18);
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(238, 199, 124, .16) 0 26%, transparent 26% 34%, rgba(238, 199, 124, .12) 34% 58%, transparent 58%);
+  opacity: .55;
+  pointer-events: none;
+}
+
+.rental-request-card span,
+.rental-request-card small {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.rental-request-card span {
+  grid-column: 1 / -1;
+  color: #c99550;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.rental-request-card strong {
+  min-width: max-content;
+  color: #ffedc4;
+  font-size: clamp(21px, 3vw, 32px);
+  line-height: 1;
+  text-shadow: 2px 2px 0 #1a100b;
+}
+
+.rental-request-card small {
+  align-self: center;
+  min-width: 0;
+  color: #bfa783;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 @keyframes rentalWheelIn {
@@ -3445,9 +3715,9 @@ body[data-mode="rental"].rental-wheel-ready .wheel-wrap {
   flex-direction: column;
   justify-content: center;
   gap: 10px;
-  min-height: min(420px, 48vh);
-  margin: 18px 0 16px;
-  padding: clamp(24px, 5vw, 54px);
+  min-height: min(360px, 41vh);
+  margin: 10px 0 10px;
+  padding: clamp(18px, 4vw, 42px);
   overflow: hidden;
   border: 2px solid rgba(224, 180, 103, .48);
   border-radius: 4px;
@@ -3500,6 +3770,107 @@ body:not(.dictatorship-active) .rental-machine-reels span {
   line-height: 1.12;
 }
 
+.rental-machine-window {
+  position: relative;
+  width: min(620px, 100%);
+  height: 118px;
+  margin: 4px auto 0;
+  overflow: hidden;
+  border: 1px solid rgba(225, 181, 105, .42);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, .4), transparent 26% 72%, rgba(0, 0, 0, .42)),
+    repeating-linear-gradient(0deg, rgba(255, 238, 194, .035) 0 1px, transparent 1px 6px),
+    #120f0d;
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 195, .06), inset 0 0 26px rgba(0, 0, 0, .48);
+}
+
+.rental-machine-window::before {
+  content: "";
+  position: absolute;
+  inset: 39px 12px;
+  z-index: 1;
+  border-block: 1px solid rgba(255, 216, 145, .32);
+  background: rgba(211, 159, 83, .08);
+  pointer-events: none;
+}
+
+.rental-machine-window::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 230, 176, .14), transparent);
+  opacity: 0;
+}
+
+.rental-machine-stage.is-running .rental-machine-window::after {
+  animation: rentalScanSweep .62s linear infinite;
+}
+
+.rental-machine-stage.is-braking .rental-machine-window {
+  animation: rentalMachineJolt .2s steps(2, end) infinite;
+}
+
+.rental-machine-stage.is-locking .rental-machine-window {
+  border-color: rgba(255, 221, 146, .74);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 236, 195, .1),
+    inset 0 0 30px rgba(0, 0, 0, .5),
+    0 0 22px rgba(220, 163, 77, .16);
+}
+
+.rental-machine-roll {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: repeat(5, 23px);
+  min-width: 0;
+  padding: 2px 20px;
+}
+
+.rental-machine-roll span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(206, 177, 130, .62);
+  font: 800 11px/1.1 "IBM Plex Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: scale(.92);
+}
+
+.rental-machine-roll .is-neighbor {
+  opacity: .54;
+}
+
+.rental-machine-stage.is-searching .rental-machine-roll span {
+  animation: rentalRollShuffle .22s steps(2, end) infinite;
+}
+
+.rental-machine-stage.is-braking .rental-machine-roll span {
+  animation: rentalRollBrake .34s steps(3, end) infinite;
+}
+
+.rental-machine-roll .is-current,
+.rental-machine-roll .is-selected {
+  color: #fff0c8;
+  font-size: clamp(15px, 2.3vw, 22px);
+  text-shadow: 0 2px 0 #1a120c, 0 0 16px rgba(232, 183, 91, .22);
+  transform: scale(1);
+}
+
+.rental-machine-roll .is-selected {
+  color: #ffe0a1;
+  animation: rentalTapeLock .58s cubic-bezier(.18, .9, .16, 1) both;
+}
+
+.rental-machine-stage.is-locking .rental-machine-reels span {
+  animation-duration: 1.9s;
+}
+
 .rental-machine-stage small {
   max-width: 520px;
   margin: 0 auto;
@@ -3509,6 +3880,36 @@ body:not(.dictatorship-active) .rental-machine-reels span {
 
 @keyframes rentalReelSpin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes rentalScanSweep {
+  from { opacity: .12; transform: translateX(-80%); }
+  42% { opacity: .42; }
+  to { opacity: .08; transform: translateX(80%); }
+}
+
+@keyframes rentalRollShuffle {
+  0% { transform: translateY(-5px) scale(.92); filter: blur(.7px); opacity: .46; }
+  50% { transform: translateY(3px) scale(.94); filter: blur(1.1px); opacity: .72; }
+  100% { transform: translateY(-2px) scale(.92); filter: blur(.5px); opacity: .5; }
+}
+
+@keyframes rentalRollBrake {
+  0% { transform: translateY(-3px) scale(.94); filter: blur(.6px); }
+  55% { transform: translateY(2px) scale(.98); filter: blur(.25px); }
+  100% { transform: translateY(0) scale(.96); filter: blur(0); }
+}
+
+@keyframes rentalMachineJolt {
+  0% { transform: translateX(-1px); }
+  50% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes rentalTapeLock {
+  0% { transform: translateY(-12px) scale(.96); filter: blur(1.1px); letter-spacing: .04em; }
+  58% { transform: translateY(3px) scale(1.04); filter: blur(0); letter-spacing: .02em; }
+  100% { transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 .rental-back-button { display: none; }
@@ -3594,11 +3995,36 @@ body[data-mode="rental"] .side-panel .tab-panel { display: none; }
 .rental-list-footnote { margin: 0; color: #937b60; font: 400 10px/1.4 "IBM Plex Mono", monospace; }
 
 @media (max-width: 640px) {
+  body[data-mode="rental"] .app {
+    height: auto;
+    min-height: calc(100vh - 20px);
+  }
+
+  body[data-mode="rental"] .wheel-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  body[data-mode="rental"] .side-panel {
+    max-height: 76vh;
+  }
+
+  body[data-mode="rental"] .theme-switch {
+    display: none;
+  }
+
   .rental-form,
+  .rental-filter-grid,
+  .rental-filter-grid-compact,
   .rental-extra-grid,
   .rental-actions,
-  .rental-person-suggestion,
   .rental-tape-list li { grid-template-columns: 1fr; }
+  .rental-request-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .rental-request-card strong { min-width: 0; }
+  .rental-person-suggestion { grid-template-columns: 46px 1fr; }
   .rental-stage { min-height: 430px; }
   .rental-tape-list span { min-height: 28px; border-right: 0; border-bottom: 1px solid rgba(228, 188, 121, .16); }
   .rental-tape-list small { padding: 0 12px 10px; }

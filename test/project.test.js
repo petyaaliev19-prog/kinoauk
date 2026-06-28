@@ -156,12 +156,11 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");
 
-  for (const id of ["rentalForm", "rentalGenreSelect", "rentalPersonInput", "rentalIncludeTv", "rentalBuildPoolButton", "rentalClearButton", "rentalBackToFormButton", "rentalTapeList"]) {
+  for (const id of ["rentalForm", "rentalMediaMovie", "rentalMediaTv", "rentalGenreSelect", "rentalPersonInput", "rentalYearFrom", "rentalYearTo", "rentalRatingFrom", "rentalCountrySelect", "rentalFilterSummary", "rentalRequestCard", "rentalRequestCount", "rentalRequestSummary", "rentalBuildPoolButton", "rentalClearButton", "rentalBackToFormButton", "rentalTapeList"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /Собрать вечер/);
   assert.match(html, /Актёр \/ актриса/);
-  assert.match(html, /Учитывать сериалы/);
   assert.match(html, /Собрать кассеты/);
   assert.match(html, /Кассеты ещё не собраны/);
   assert.match(html, /Колесо или VHS-автомат/);
@@ -176,23 +175,50 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   assert.match(app, /view: "form"/);
   assert.match(app, /state\.rental\.view = payload\.selectionMode === "wheel"/);
   assert.match(app, /rental-wheel-ready/);
+  assert.match(app, /isRentalWheelView\(\) \|\| isRentalMachineView\(\)/);
+  assert.match(app, /canSpinRentalMachine \? "Выбрать" : "Крутить"/);
+  assert.match(app, /function rentalSessionId\(session\)/);
+  assert.match(app, /\/api\/rental\/sessions\/\$\{sessionId\}\/select/);
+  assert.match(app, /function animateRentalMachineSelection\(session, selectedItem, selectedIndex\)/);
+  assert.match(app, /is-searching/);
+  assert.match(app, /is-braking/);
+  assert.match(app, /renderRentalMachineRoll\(items, winningIndex, true\)/);
   assert.match(app, /pluralizeCassettes\(state\.rental\.session\.totalCount\)/);
   assert.doesNotMatch(app, /tapeWord\(/);
   assert.match(app, /\/api\/rental\/config/);
   assert.doesNotMatch(app, /rentalPersonInput\.disabled = !rentalReady/);
   assert.doesNotMatch(app, /rentalGenreSelect\.disabled = !rentalReady/);
-  assert.match(app, /\/api\/rental\/genres\?mediaType=movie/);
+  assert.match(app, /function rentalMediaType\(\)/);
+  assert.match(app, /function rentalFilterSummaryText\(\)/);
+  assert.match(app, /function renderRentalRequestCard\(session\)/);
+  assert.match(app, /function tmdbProfileUrl\(path, size = "w92"\)/);
+  assert.match(app, /person\.profilePath/);
+  assert.match(app, /\/api\/rental\/genres\?mediaType=\$\{mediaType\}/);
+  assert.doesNotMatch(app, /hasPrimaryFilter/);
+  assert.match(app, /genreTmdbIds: genreTmdbId \? \[genreTmdbId\] : \[\]/);
+  assert.match(app, /mediaType: rentalMediaType\(\)/);
+  assert.match(app, /\.\.\.rentalExtraFilters\(\)/);
   assert.match(app, /\/api\/rental\/people\?q=/);
   assert.match(app, /\/api\/rental\/sessions/);
   assert.match(css, /\.rental-form/);
+  assert.match(css, /\.rental-console/);
+  assert.match(css, /\.rental-filter-grid/);
+  assert.match(css, /\.rental-range-inputs/);
+  assert.match(css, /\.rental-filter-summary/);
+  assert.match(css, /\.rental-request-card/);
+  assert.match(css, /\.rental-media-toggle/);
   assert.match(css, /rental-wheel-ready \.wheel-wrap/);
   assert.match(css, /\.rental-stage\.is-collapsed/);
   assert.match(css, /@keyframes rentalWheelIn/);
   assert.match(css, /\.rental-back-button/);
   assert.match(css, /\.rental-person-suggestions/);
+  assert.match(css, /\.rental-person-avatar/);
   assert.match(css, /\.rental-empty-hint/);
-  assert.match(css, /\.rental-checkbox/);
   assert.match(css, /\.rental-machine-note/);
+  assert.match(css, /\.rental-machine-window/);
+  assert.match(css, /@keyframes rentalRollShuffle/);
+  assert.match(css, /@keyframes rentalMachineJolt/);
+  assert.match(css, /@keyframes rentalTapeLock/);
 });
 
 test("settled spin keeps its weighted sector layout after stakes are cleared", () => {

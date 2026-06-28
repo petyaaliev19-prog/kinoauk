@@ -5,8 +5,10 @@ const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const DEFAULT_LANGUAGE = "ru-RU";
 const DEFAULT_PERSON_LIMIT = 8;
 const RENTAL_MEDIA_TYPES = new Set(["movie", "tv"]);
-const MAX_DISCOVER_PAGES = 20;
+const MAX_DISCOVER_PAGES = 500;
 const DEFAULT_DISCOVER_CONCURRENCY = 10;
+const TMDB_DISCOVER_MAX_PAGE = 500;
+const TMDB_DISCOVER_MAX_PAGES_ENV = "TMDB_DISCOVER_MAX_PAGES";
 const TMDB_TOKEN_NAMES = ["TMDB_API_TOKEN", "TMDB_READ_ACCESS_TOKEN", "TMDB_BEARER_TOKEN", "TMDB_TOKEN"];
 const TMDB_API_KEY_NAME = "TMDB_API_KEY";
 
@@ -131,7 +133,7 @@ async function fetchTmdbPersonCredits(personTmdbId, mediaType, options = {}) {
 async function fetchTmdbDiscoverPool(mediaType, filters = {}, options = {}) {
   assertRentalMediaType(mediaType);
   const baseParams = buildDiscoverParams(mediaType, filters, options.language || DEFAULT_LANGUAGE);
-  const maxPages = Math.max(1, Number(options.maxPages || MAX_DISCOVER_PAGES));
+  const maxPages = tmdbDiscoverMaxPages(options);
   const firstPayload = await tmdbGet(`/discover/${mediaType}`, { ...baseParams, page: 1 }, options);
   const totalPages = Math.min(Number(firstPayload.total_pages || 1), maxPages);
   const pages = [{
@@ -162,6 +164,16 @@ async function fetchTmdbDiscoverPool(mediaType, filters = {}, options = {}) {
   return pages
     .sort((left, right) => left.page - right.page)
     .flatMap((page) => page.items);
+}
+
+function tmdbDiscoverMaxPages(options = {}) {
+  const configured = options.maxPages
+    ?? options.env?.[TMDB_DISCOVER_MAX_PAGES_ENV]
+    ?? readDotEnv(options.envPath)[TMDB_DISCOVER_MAX_PAGES_ENV]
+    ?? MAX_DISCOVER_PAGES;
+  const parsed = Number(configured);
+  if (!Number.isFinite(parsed)) return MAX_DISCOVER_PAGES;
+  return Math.max(1, Math.min(TMDB_DISCOVER_MAX_PAGE, Math.floor(parsed)));
 }
 
 function assertRentalMediaType(mediaType) {
@@ -268,6 +280,12 @@ function buildDiscoverParams(mediaType, filters, language) {
   if (Array.isArray(filters.genreTmdbIds) && filters.genreTmdbIds.length) {
     params.with_genres = filters.genreTmdbIds.join(",");
   }
+  if (filters.voteAverageFrom !== null && filters.voteAverageFrom !== undefined) {
+    params["vote_average.gte"] = filters.voteAverageFrom;
+  }
+  if (Array.isArray(filters.countries) && filters.countries.length) {
+    params.with_origin_country = filters.countries.join("|");
+  }
   if (mediaType === "movie") {
     if (filters.yearFrom) params["primary_release_date.gte"] = `${filters.yearFrom}-01-01`;
     if (filters.yearTo) params["primary_release_date.lte"] = `${filters.yearTo}-12-31`;
@@ -344,5 +362,6 @@ module.exports = {
   searchTmdbPeople,
   tmdbGet,
   tmdbCredential,
+  tmdbDiscoverMaxPages,
   tmdbToken
 };

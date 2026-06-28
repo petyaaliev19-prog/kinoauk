@@ -76,6 +76,13 @@
           </div>
           <p class="rental-machine-kicker">VHS-АВТОМАТ</p>
           <strong id="rentalMachineTitle">Пул слишком большой для колеса</strong>
+          <div class="rental-machine-window" aria-hidden="true">
+            <div class="rental-machine-roll" id="rentalMachineRoll">
+              <span>---</span>
+              <span>Ожидание кассеты</span>
+              <span>---</span>
+            </div>
+          </div>
           <small id="rentalMachineText">Автомат выберет одну кассету честно из всего списка.</small>
         </section>
 
@@ -83,41 +90,80 @@
           <p class="rental-kicker">TMDb · ВНЕШНИЙ КАТАЛОГ</p>
           <h2 id="rentalStageTitle">Собрать вечер</h2>
           <p class="rental-copy">Выбери жанр и, если нужно, конкретного человека из каталога. Прокат соберёт большой пул кассет, не трогая домашнюю полку.</p>
-          <form class="rental-form" id="rentalForm" aria-label="Форма проката">
-            <label class="rental-field">
-              <span>Жанр</span>
-              <select id="rentalGenreSelect">
-                <option value="">Загрузка жанров...</option>
-              </select>
-            </label>
-            <label class="rental-field rental-field-wide">
-              <span>Актёр / актриса</span>
-              <input id="rentalPersonInput" type="search" placeholder="Начни вводить имя" autocomplete="off">
-            </label>
-            <div class="rental-person-suggestions" id="rentalPersonSuggestions" aria-label="Выбор человека">
-              <p class="rental-empty-hint">Подсказки появятся после ввода имени.</p>
-            </div>
-            <label class="rental-checkbox">
-              <input id="rentalIncludeTv" type="checkbox">
-              <span>Учитывать сериалы</span>
-            </label>
-            <details class="rental-extra" open>
-              <summary>Дополнительно — позже</summary>
-              <div class="rental-extra-grid" aria-label="Будущие фильтры проката">
+          <form class="rental-form rental-console" id="rentalForm" aria-label="Форма проката">
+            <section class="rental-console-section rental-console-catalog" aria-label="Тип каталога">
+              <p class="rental-console-label">Каталог</p>
+              <fieldset class="rental-media-toggle">
+                <legend>Тип каталога</legend>
                 <label>
-                  <span>Режиссёр</span>
-                  <input type="text" value="не выбран" disabled>
+                  <input id="rentalMediaMovie" name="rentalMediaType" type="radio" value="movie" checked>
+                  <span>Фильмы</span>
                 </label>
                 <label>
-                  <span>Год от</span>
-                  <input type="text" value="любой" disabled>
+                  <input id="rentalMediaTv" name="rentalMediaType" type="radio" value="tv">
+                  <span>Сериалы</span>
                 </label>
-                <label>
-                  <span>Рейтинг от</span>
-                  <input type="text" value="любой" disabled>
+              </fieldset>
+            </section>
+
+            <section class="rental-console-section rental-console-primary" aria-label="Основные фильтры">
+              <p class="rental-console-label">Быстрый выбор</p>
+              <div class="rental-filter-grid">
+                <label class="rental-field">
+                  <span>Жанр</span>
+                  <select id="rentalGenreSelect">
+                    <option value="">Загрузка жанров...</option>
+                  </select>
+                </label>
+                <label class="rental-field rental-field-wide">
+                  <span>Актёр / актриса</span>
+                  <input id="rentalPersonInput" type="search" placeholder="Начни вводить имя" autocomplete="off">
                 </label>
               </div>
-            </details>
+              <div class="rental-person-suggestions" id="rentalPersonSuggestions" aria-label="Выбор человека">
+                <p class="rental-empty-hint">Подсказки появятся после ввода имени.</p>
+              </div>
+            </section>
+
+            <section class="rental-console-section rental-console-fine" aria-label="Уточняющие фильтры">
+              <p class="rental-console-label">Уточнить выдачу</p>
+              <div class="rental-filter-grid rental-filter-grid-compact">
+                <div class="rental-range-field">
+                  <span>Год</span>
+                  <div class="rental-range-inputs">
+                    <input id="rentalYearFrom" type="number" inputmode="numeric" min="1900" max="2100" placeholder="от">
+                    <input id="rentalYearTo" type="number" inputmode="numeric" min="1900" max="2100" placeholder="до">
+                  </div>
+                </div>
+                <label class="rental-field">
+                  <span>Рейтинг от</span>
+                  <input id="rentalRatingFrom" type="number" inputmode="decimal" min="0" max="10" step="0.1" placeholder="любой">
+                </label>
+                <label class="rental-field">
+                  <span>Страна</span>
+                  <select id="rentalCountrySelect">
+                    <option value="">любая</option>
+                    <option value="US">США</option>
+                    <option value="RU">Россия</option>
+                    <option value="GB">Великобритания</option>
+                    <option value="FR">Франция</option>
+                    <option value="DE">Германия</option>
+                    <option value="IT">Италия</option>
+                    <option value="ES">Испания</option>
+                    <option value="JP">Япония</option>
+                    <option value="KR">Корея</option>
+                    <option value="CN">Китай</option>
+                    <option value="IN">Индия</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <div class="rental-filter-summary" aria-live="polite">
+              <span>Запрос</span>
+              <strong id="rentalFilterSummary">Фильмы · популярное</strong>
+            </div>
+
             <div class="rental-status" id="rentalStatus" role="status">
               <strong id="rentalStatusTitle">Кассеты ещё не собраны</strong>
               <span id="rentalStatusText">Можно собрать пул только по жанру или уточнить актёра через поиск.</span>
@@ -128,6 +174,12 @@
             </div>
           </form>
         </section>
+
+        <aside class="rental-request-card" id="rentalRequestCard" hidden aria-live="polite">
+          <span>Кассета в автомате</span>
+          <strong id="rentalRequestCount">0 кассет</strong>
+          <small id="rentalRequestSummary">Запрос еще не собран</small>
+        </aside>
 
         <div class="controls">
           <button class="primary" id="spinButton" type="button">Крутить</button>

@@ -28,6 +28,7 @@ const {
   saveTmdbPeople,
   searchTmdbPeople,
   tmdbCredential,
+  tmdbDiscoverMaxPages,
   tmdbToken
 } = require("../tmdb-client");
 
@@ -394,31 +395,20 @@ test("getRentalGenres uses mocked fetch and caches movie/tv genres without mixin
   }
 });
 
-test("normalizeRentalSessionFilters requires a primary rental filter", () => {
-  assert.throws(
-    () => normalizeRentalSessionFilters({ includeTv: true }),
-    /Нужен хотя бы один основной фильтр/
-  );
+test("normalizeRentalSessionFilters allows an unfiltered media-type pool", () => {
+  const movieFilters = normalizeRentalSessionFilters({});
+  assert.deepEqual(movieFilters.genreTmdbIds, []);
+  assert.equal(movieFilters.actorTmdbId, null);
+  assert.equal(movieFilters.mediaType, "movie");
+
+  const tvFilters = normalizeRentalSessionFilters({ mediaType: "tv" });
+  assert.equal(tvFilters.mediaType, "tv");
 });
 
-test("buildRentalPool filters exact actor credits and mixes movie plus tv when includeTv is on", async () => {
+test("buildRentalPool treats legacy includeTv as the selected tv catalog", async () => {
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url.pathname);
-    if (url.pathname === "/3/person/287/movie_credits") {
-      return {
-        ok: true,
-        async json() {
-          return {
-            cast: [
-              { id: 550, title: "Fight Club", release_date: "1999-10-15", genre_ids: [18], vote_average: 8.4, poster_path: "/fight.jpg" },
-              { id: 107, title: "Snatch", release_date: "2000-09-01", genre_ids: [80], vote_average: 7.8, poster_path: "/snatch.jpg" }
-            ],
-            crew: []
-          };
-        }
-      };
-    }
     if (url.pathname === "/3/person/287/tv_credits") {
       return {
         ok: true,
@@ -446,11 +436,10 @@ test("buildRentalPool filters exact actor credits and mixes movie plus tv when i
     token: "test-token"
   });
 
-  assert.deepEqual(calls, ["/3/person/287/movie_credits", "/3/person/287/tv_credits"]);
-  assert.deepEqual(items.map((item) => `${item.mediaType}:${item.title}`), [
-    "movie:Fight Club",
-    "tv:King of the Hill"
-  ]);
+  assert.equal(filters.mediaType, "tv");
+  assert.equal(filters.includeTv, false);
+  assert.deepEqual(calls, ["/3/person/287/tv_credits"]);
+  assert.deepEqual(items.map((item) => `${item.mediaType}:${item.title}`), ["tv:King of the Hill"]);
 });
 
 test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plus media type", async () => {
@@ -466,8 +455,8 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
             page: 1,
             total_pages: 2,
             results: [
-              { id: 1, title: "Page One", release_date: "2001-01-01", genre_ids: [28], vote_average: 7.2 },
-              { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3 }
+              { id: 1, title: "Page One", release_date: "2001-01-01", genre_ids: [28], vote_average: 7.2, origin_country: ["US"] },
+              { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3, origin_country: ["US"] }
             ]
           };
         }
@@ -475,8 +464,8 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
           page: 2,
           total_pages: 2,
           results: [
-            { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3 },
-            { id: 3, title: "Page Two", release_date: "2003-01-01", genre_ids: [28], vote_average: 7.4 }
+            { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3, origin_country: ["US"] },
+            { id: 3, title: "Page Two", release_date: "2003-01-01", genre_ids: [28], vote_average: 7.4, origin_country: ["US"] }
           ]
         };
       }
@@ -485,7 +474,11 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
 
   const filters = normalizeRentalSessionFilters({
     genreTmdbIds: [28],
-    includeTv: false
+    includeTv: false,
+    yearFrom: 2001,
+    yearTo: 2003,
+    voteAverageFrom: 7,
+    countries: ["US"]
   });
 
   const items = await buildRentalPool(filters, openRentalDatabase(":memory:"), {
@@ -494,7 +487,86 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
   });
 
   assert.equal(calls.length, 2);
+  assert.match(calls[0], /primary_release_date\.gte=2001-01-01/);
+  assert.match(calls[0], /primary_release_date\.lte=2003-12-31/);
+  assert.match(calls[0], /vote_average\.gte=7/);
+  assert.match(calls[0], /with_origin_country=US/);
   assert.deepEqual(items.map((item) => item.title), ["Page One", "Shared", "Page Two"]);
+});
+
+test("buildRentalPool is not capped at the first 20 discover pages", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const page = Number(url.searchParams.get("page"));
+    calls.push(page);
+    return {
+      ok: true,
+      async json() {
+        return {
+          page,
+          total_pages: 25,
+          results: [
+            { id: page, title: `Page ${page}`, release_date: "2001-01-01", genre_ids: [28] }
+          ]
+        };
+      }
+    };
+  };
+
+  const filters = normalizeRentalSessionFilters({
+    genreTmdbIds: [28],
+    mediaType: "movie"
+  });
+
+  const items = await buildRentalPool(filters, openRentalDatabase(":memory:"), {
+    fetchImpl,
+    token: "test-token"
+  });
+
+  assert.equal(calls.length, 25);
+  assert.equal(calls.at(-1), 25);
+  assert.equal(items.at(-1).title, "Page 25");
+});
+
+test("tmdbDiscoverMaxPages can be lowered through environment config", () => {
+  assert.equal(tmdbDiscoverMaxPages({ env: { TMDB_DISCOVER_MAX_PAGES: "50" } }), 50);
+  assert.equal(tmdbDiscoverMaxPages({ env: { TMDB_DISCOVER_MAX_PAGES: "999" } }), 500);
+  assert.equal(tmdbDiscoverMaxPages({ env: { TMDB_DISCOVER_MAX_PAGES: "0" } }), 1);
+});
+
+test("buildRentalPool uses the explicitly selected tv catalog", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(`${url.pathname}?${url.searchParams.toString()}`);
+    return {
+      ok: true,
+      async json() {
+        return {
+          page: 1,
+          total_pages: 1,
+          results: [
+            { id: 901, name: "Slow Horses", first_air_date: "2022-04-01", genre_ids: [18], vote_average: 8.1, origin_country: ["GB"] }
+          ]
+        };
+      }
+    };
+  };
+
+  const filters = normalizeRentalSessionFilters({
+    genreTmdbIds: [18],
+    mediaType: "tv"
+  });
+
+  const items = await buildRentalPool(filters, openRentalDatabase(":memory:"), {
+    fetchImpl,
+    token: "test-token"
+  });
+
+  assert.equal(filters.mediaType, "tv");
+  assert.equal(filters.includeTv, false);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /^\/3\/discover\/tv\?/);
+  assert.deepEqual(items.map((item) => `${item.mediaType}:${item.title}`), ["tv:Slow Horses"]);
 });
 
 test("createRentalSession stores the full filtered pool and getRentalSession reads it back", async () => {

@@ -282,22 +282,18 @@ async function selectRentalSession(res, sessionId, options = {}) {
 
 function normalizeRentalSessionFilters(payload) {
   const raw = payload && typeof payload === "object" ? payload : {};
+  const mediaType = raw.mediaType === "tv" || raw.includeTv === true ? "tv" : "movie";
   const filters = {
     genreTmdbIds: normalizeIdList(raw.genreTmdbIds),
     actorTmdbId: normalizeOptionalId(raw.actorTmdbId),
     directorTmdbId: normalizeOptionalId(raw.directorTmdbId),
-    includeTv: Boolean(raw.includeTv),
+    mediaType,
+    includeTv: false,
     yearFrom: normalizeOptionalYear(raw.yearFrom),
     yearTo: normalizeOptionalYear(raw.yearTo),
     voteAverageFrom: normalizeOptionalNumber(raw.voteAverageFrom),
     countries: normalizeCountryList(raw.countries)
   };
-
-  if (!filters.genreTmdbIds.length && !filters.actorTmdbId && !filters.directorTmdbId) {
-    const error = new Error("Нужен хотя бы один основной фильтр: жанр, актёр или режиссёр.");
-    error.code = "INVALID_RENTAL_FILTERS";
-    throw error;
-  }
 
   if (filters.yearFrom && filters.yearTo && filters.yearFrom > filters.yearTo) {
     const error = new Error("Год 'от' не может быть больше года 'до'.");
@@ -340,7 +336,7 @@ function normalizeCountryList(value) {
 }
 
 async function buildRentalPool(filters, database, options = {}) {
-  const mediaTypes = filters.includeTv ? ["movie", "tv"] : ["movie"];
+  const mediaTypes = [filters.mediaType || "movie"];
   let items;
 
   if (filters.actorTmdbId || filters.directorTmdbId) {
@@ -521,15 +517,15 @@ function upsertRentalMedia(database, items) {
 function buildRentalQueryLabel(database, filters) {
   const parts = [];
   if (filters.genreTmdbIds.length) {
-    const selectGenreName = database.prepare("SELECT name FROM genres WHERE tmdb_id = ? AND media_type IN ('movie', 'tv') ORDER BY media_type LIMIT 1");
+    const selectGenreName = database.prepare("SELECT name FROM genres WHERE tmdb_id = ? AND media_type = ? LIMIT 1");
     const names = filters.genreTmdbIds
-      .map((genreId) => selectGenreName.get(genreId)?.name || `Жанр ${genreId}`)
+      .map((genreId) => selectGenreName.get(genreId, filters.mediaType || "movie")?.name || `Жанр ${genreId}`)
       .filter(Boolean);
     if (names.length) parts.push(names.join(" + "));
   }
   if (filters.actorTmdbId) parts.push(readPersonLabel(database, filters.actorTmdbId));
   if (filters.directorTmdbId) parts.push(`реж. ${readPersonLabel(database, filters.directorTmdbId)}`);
-  if (filters.includeTv) parts.push("с сериалами");
+  if (filters.mediaType === "tv") parts.push("сериалы");
   return parts.join(" × ") || "Сеанс проката";
 }
 
