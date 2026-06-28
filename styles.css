@@ -173,6 +173,11 @@ textarea {
   gap: 12px;
 }
 
+.controls {
+  position: relative;
+  z-index: 6;
+}
+
 .topbar {
   justify-content: space-between;
   align-items: flex-start;
@@ -836,12 +841,14 @@ canvas {
 .pointer {
   position: absolute;
   top: -2px;
+  left: 50%;
   z-index: 3;
   width: 0;
   height: 0;
   border-left: 18px solid transparent;
   border-right: 18px solid transparent;
   border-top: 34px solid var(--accent);
+  transform: translateX(-50%);
   filter: drop-shadow(0 0 13px rgba(244, 197, 66, .55)) drop-shadow(0 4px 10px rgba(0, 0, 0, .4));
 }
 
@@ -849,6 +856,7 @@ canvas {
   position: absolute;
   display: grid;
   place-items: center;
+  pointer-events: none;
   width: 120px;
   aspect-ratio: 1;
   border: 1px solid rgba(255, 255, 255, .13);
@@ -3186,9 +3194,35 @@ body[data-theme="day"] .mascot-stand {
     #241910;
   box-shadow: inset 0 0 0 1px rgba(255, 236, 195, .05), inset 0 20px 60px rgba(0, 0, 0, .2);
   text-align: left;
+  transition:
+    opacity .34s ease,
+    transform .34s ease,
+    max-height .44s ease,
+    min-height .44s ease,
+    margin .34s ease,
+    padding .34s ease;
 }
 
 .rental-stage[hidden] { display: none; }
+
+.rental-stage.is-collapsed {
+  max-height: 0;
+  min-height: 0;
+  margin-block: 0;
+  padding-block: 0;
+  opacity: 0;
+  transform: translateY(18px) scale(.985);
+  pointer-events: none;
+}
+
+.rental-stage:not(.is-collapsed) {
+  animation: rentalFormIn .42s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes rentalFormIn {
+  from { opacity: 0; transform: translateY(20px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 .rental-stage::before,
 .rental-stage::after {
@@ -3386,8 +3420,108 @@ body[data-theme="day"] .mascot-stand {
 .rental-actions button:disabled { opacity: .72; cursor: default; }
 
 body[data-mode="rental"] .wheel-wrap,
+body[data-mode="rental"] .rental-machine-stage,
 body[data-mode="rental"] .controls,
 body[data-mode="rental"] .winner { display: none; }
+
+body[data-mode="rental"].rental-wheel-ready .wheel-wrap,
+body[data-mode="rental"].rental-wheel-ready .controls,
+body[data-mode="rental"].rental-machine-ready .rental-machine-stage,
+body[data-mode="rental"].rental-machine-ready .controls { display: flex; }
+
+body[data-mode="rental"].rental-wheel-ready .wheel-wrap {
+  display: grid;
+  margin-top: 8px;
+  animation: rentalWheelIn .58s cubic-bezier(.18, .9, .16, 1) both;
+}
+
+@keyframes rentalWheelIn {
+  from { opacity: 0; transform: translateY(26px) scale(.94) rotate(-1.5deg); filter: brightness(.82); }
+  to { opacity: 1; transform: translateY(0) scale(1) rotate(0); filter: brightness(1); }
+}
+
+.rental-machine-stage {
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: min(420px, 48vh);
+  margin: 18px 0 16px;
+  padding: clamp(24px, 5vw, 54px);
+  overflow: hidden;
+  border: 2px solid rgba(224, 180, 103, .48);
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, rgba(255, 236, 183, .06), transparent 46%, rgba(75, 218, 186, .06)),
+    repeating-linear-gradient(0deg, rgba(255, 241, 208, .025) 0 2px, transparent 2px 7px),
+    #1d1713;
+  box-shadow: inset 0 0 0 7px rgba(0, 0, 0, .18), 0 20px 34px rgba(0, 0, 0, .24);
+  text-align: center;
+  animation: rentalWheelIn .58s cubic-bezier(.18, .9, .16, 1) both;
+}
+
+.rental-machine-stage[hidden] { display: none; }
+
+.rental-machine-reels {
+  display: flex;
+  justify-content: center;
+  gap: min(7vw, 58px);
+  margin-bottom: 8px;
+}
+
+.rental-machine-reels span {
+  width: clamp(74px, 13vw, 118px);
+  aspect-ratio: 1;
+  border: 10px solid #2a211a;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #cda464 0 9px, transparent 10px),
+    repeating-conic-gradient(from 0deg, #5f4935 0 12deg, #19130f 12deg 25deg);
+  box-shadow: inset 0 0 0 1px rgba(255, 233, 188, .18), 0 9px 18px rgba(0, 0, 0, .32);
+  animation: rentalReelSpin 1.1s linear infinite;
+}
+
+.rental-machine-reels span + span { animation-direction: reverse; }
+
+body:not(.dictatorship-active) .rental-machine-reels span {
+  animation-play-state: paused;
+}
+
+.rental-machine-kicker {
+  margin: 0;
+  color: #d7a85d;
+  font: 800 12px/1 "IBM Plex Mono", monospace;
+  letter-spacing: .18em;
+}
+
+.rental-machine-stage strong {
+  color: #f2dfb8;
+  font-size: clamp(24px, 4vw, 42px);
+  line-height: 1.12;
+}
+
+.rental-machine-stage small {
+  max-width: 520px;
+  margin: 0 auto;
+  color: #bfa783;
+  font: 700 13px/1.45 "IBM Plex Mono", monospace;
+}
+
+@keyframes rentalReelSpin {
+  to { transform: rotate(360deg); }
+}
+
+.rental-back-button { display: none; }
+
+body[data-mode="rental"] #removeWinnerButton { display: none; }
+
+body[data-mode="rental"].rental-wheel-ready .rental-back-button { display: inline-block; }
+body[data-mode="rental"].rental-machine-ready .rental-back-button { display: inline-block; }
+
+body[data-mode="rental"].rental-wheel-ready #spinButton { flex: 1.15; }
+body[data-mode="rental"].rental-wheel-ready .rental-back-button { flex: .85; }
+body[data-mode="rental"].rental-machine-ready #spinButton { flex: 1.15; }
+body[data-mode="rental"].rental-machine-ready .rental-back-button { flex: .85; }
 
 body[data-mode="rental"] .wheel-panel { justify-content: flex-start; }
 body[data-mode="rental"] .side-panel .tabs,

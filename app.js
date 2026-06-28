@@ -65,9 +65,13 @@ const state = {
     peopleLoading: false,
     selectedPerson: null,
     session: null,
+    view: "form",
     loading: false,
     status: "Можно собрать пул только по жанру или уточнить актёра через поиск.",
-    errorCode: null
+    configLoaded: false,
+    configLoading: false,
+    configured: false,
+    configStatus: "Проверяю подключение TMDb на сервере."
   },
   // Keep the exact sector geometry that the animation landed on. Stakes are
   // cleared after a result, so recalculating here would move the winner away
@@ -79,6 +83,9 @@ const state = {
 const canvas = document.querySelector("#wheelCanvas");
 const ctx = canvas.getContext("2d");
 const wheelWrap = document.querySelector(".wheel-wrap");
+const rentalMachineStage = document.querySelector("#rentalMachineStage");
+const rentalMachineTitle = document.querySelector("#rentalMachineTitle");
+const rentalMachineText = document.querySelector("#rentalMachineText");
 const movieList = document.querySelector("#movieList");
 const template = document.querySelector("#movieItemTemplate");
 const spinButton = document.querySelector("#spinButton");
@@ -110,6 +117,7 @@ const rentalPersonSuggestions = document.querySelector("#rentalPersonSuggestions
 const rentalIncludeTv = document.querySelector("#rentalIncludeTv");
 const rentalBuildPoolButton = document.querySelector("#rentalBuildPoolButton");
 const rentalClearButton = document.querySelector("#rentalClearButton");
+const rentalBackToFormButton = document.querySelector("#rentalBackToFormButton");
 const rentalStatusTitle = document.querySelector("#rentalStatusTitle");
 const rentalStatusText = document.querySelector("#rentalStatusText");
 const rentalListTitle = document.querySelector("#rentalListTitle");
@@ -281,6 +289,42 @@ function auctionMovies() {
 
 function auctionOdds() {
   return calculateMovieOdds(auctionMovies(), state.stakes);
+}
+
+function rentalWheelItems() {
+  const session = state.rental.session;
+  if (!isRentalWheelView() || !session || session.selectionMode !== "wheel") return [];
+  return (session.items || []).map(rentalItemToMovie);
+}
+
+function isRentalWheelView() {
+  return state.mode === "rental" && state.rental.view === "wheel";
+}
+
+function isRentalMachineView() {
+  return state.mode === "rental" && state.rental.view === "vhs_machine";
+}
+
+function rentalItemToMovie(item) {
+  return {
+    title: item.title,
+    url: item.tmdbId ? `https://www.themoviedb.org/${item.mediaType === "tv" ? "tv" : "movie"}/${item.tmdbId}` : "",
+    poster: item.posterPath ? `https://image.tmdb.org/t/p/w342${item.posterPath}` : "",
+    year: item.year ? String(item.year) : "",
+    genre: item.mediaType === "tv" ? "сериал" : "прокат",
+    genres: item.genreIds || [],
+    rental: true,
+    tmdbId: item.tmdbId,
+    mediaType: item.mediaType
+  };
+}
+
+function activeWheelMovies() {
+  return state.mode === "rental" ? rentalWheelItems() : auctionMovies();
+}
+
+function activeWheelOdds(movies = activeWheelMovies()) {
+  return state.mode === "rental" ? calculateMovieOdds(movies, {}) : calculateMovieOdds(movies, state.stakes);
 }
 
 function chanceLabel(chance) {
@@ -502,12 +546,20 @@ function pluralizeCassettes(count) {
 }
 
 function render() {
-  const candidates = auctionMovies();
+  const candidates = activeWheelMovies();
+  const shelfCandidates = auctionMovies();
   movieCount.textContent = candidates.length;
   wheelWrap.classList.toggle("is-empty", candidates.length === 0);
-  emptyWheelLabel.textContent = state.movies.length && state.genreFilter.length && !candidates.length
-    ? "В этой кассете нет подходящих жанров"
-    : "Нет фильмов";
+  if (state.mode === "rental") {
+    emptyWheelLabel.textContent = "Сначала собери небольшой пул";
+  } else {
+    emptyWheelLabel.textContent = state.movies.length && state.genreFilter.length && !shelfCandidates.length
+      ? "В этой кассете нет подходящих жанров"
+      : "Нет фильмов";
+  }
+  document.body.classList.toggle("rental-wheel-view", isRentalWheelView());
+  document.body.classList.toggle("rental-wheel-ready", isRentalWheelView() && candidates.length > 0);
+  document.body.classList.toggle("rental-machine-ready", isRentalMachineView());
   document.body.classList.toggle("dictatorship-active", state.spinning);
   vhsOsd.textContent = vhsOsdLabel();
   dictatorshipBanner.textContent = state.spinning
@@ -518,8 +570,12 @@ function render() {
   renderPosterBackdrop();
   drawWheel();
   updateWinner();
-  spinButton.disabled = candidates.length < 2 || state.spinning;
-  spinButton.textContent = state.spinning ? "Диктатура крутит..." : "Крутить";
+  rentalMachineStage.hidden = !isRentalMachineView();
+  const canSpinRentalMachine = isRentalMachineView() && state.rental.session?.totalCount > 0;
+  spinButton.disabled = state.spinning || (canSpinRentalMachine ? false : candidates.length < 2);
+  spinButton.textContent = state.spinning
+    ? (canSpinRentalMachine ? "Автомат выбирает..." : "Диктатура крутит...")
+    : (canSpinRentalMachine ? "Выбрать кассету" : "Крутить");
   removeWinnerButton.disabled = !state.winner || state.spinning;
   resetWinnerButton.disabled = state.spinning;
   clearButton.disabled = state.spinning;
@@ -540,6 +596,7 @@ function render() {
   shelfModeButton.setAttribute("aria-pressed", String(state.mode === "shelf"));
   rentalModeButton.setAttribute("aria-pressed", String(state.mode === "rental"));
   rentalStage.hidden = state.mode !== "rental";
+  rentalStage.classList.toggle("is-collapsed", isRentalWheelView());
   rentalListPanel.hidden = state.mode !== "rental";
   renderRental();
 }
@@ -549,17 +606,18 @@ function setAppMode(mode) {
   state.mode = mode;
   save();
   render();
-  if (mode === "rental") ensureRentalGenres();
+  if (mode === "rental") bootRentalCatalog();
 }
 
 function renderRental() {
   if (!rentalForm) return;
 
   const selectedGenre = rentalGenreSelect.value;
+  const rentalReady = state.rental.configured;
   rentalGenreSelect.disabled = state.rental.genresLoading || state.rental.loading;
   rentalPersonInput.disabled = state.rental.loading;
   rentalIncludeTv.disabled = state.rental.loading;
-  rentalBuildPoolButton.disabled = state.rental.loading || state.rental.genresLoading || !selectedGenre;
+  rentalBuildPoolButton.disabled = !rentalReady || state.rental.loading || state.rental.genresLoading || !selectedGenre;
   rentalClearButton.disabled = state.rental.loading
     || (!selectedGenre && !rentalPersonInput.value && !state.rental.selectedPerson && !state.rental.session);
 
@@ -571,9 +629,10 @@ function renderRental() {
 }
 
 function rentalStatusTitleText() {
+  if (!state.rental.configured) return state.rental.configLoading ? "Проверяю TMDb" : "Прокат недоступен";
   if (state.rental.loading) return "Собираю кассеты";
   if (state.rental.peopleLoading) return "Ищу человека";
-  if (state.rental.session) return `${state.rental.session.totalCount} ${tapeWord(state.rental.session.totalCount)} найдено`;
+  if (state.rental.session) return `${state.rental.session.totalCount} ${pluralizeCassettes(state.rental.session.totalCount)} найдено`;
   if (state.rental.genresLoading) return "Загружаю жанры";
   return "Кассеты ещё не собраны";
 }
@@ -582,13 +641,13 @@ function renderRentalGenres() {
   const current = rentalGenreSelect.value;
   rentalGenreSelect.innerHTML = "";
 
-  if (state.rental.genresLoading) {
-    rentalGenreSelect.append(new Option("Загрузка жанров...", ""));
+  if (!state.rental.configured) {
+    rentalGenreSelect.append(new Option("TMDb не настроен на сервере", ""));
     return;
   }
 
-  if (state.rental.errorCode === "TMDB_TOKEN_MISSING") {
-    rentalGenreSelect.append(new Option("Нужен ключ TMDb", ""));
+  if (state.rental.genresLoading) {
+    rentalGenreSelect.append(new Option("Загрузка жанров...", ""));
     return;
   }
 
@@ -612,18 +671,18 @@ function renderRentalPeople() {
     return;
   }
 
-  if (state.rental.peopleLoading) {
+  if (!state.rental.configured) {
     const hint = document.createElement("p");
     hint.className = "rental-empty-hint";
-    hint.textContent = "Ищу в каталоге TMDb...";
+    hint.textContent = "Прокат включится, когда на сервере будет настроен TMDb.";
     rentalPersonSuggestions.append(hint);
     return;
   }
 
-  if (state.rental.errorCode === "TMDB_TOKEN_MISSING") {
+  if (state.rental.peopleLoading) {
     const hint = document.createElement("p");
     hint.className = "rental-empty-hint";
-    hint.textContent = "Поиск TMDb не запустится без TMDB_API_TOKEN в файле .env рядом с server.js.";
+    hint.textContent = "Ищу в каталоге TMDb...";
     rentalPersonSuggestions.append(hint);
     return;
   }
@@ -670,7 +729,7 @@ function renderRentalSession() {
 
   if (!session) {
     rentalListTitle.textContent = "Пул ещё не собран";
-    rentalListMeta.textContent = "После запроса здесь будет полный результат TMDb";
+    rentalListMeta.textContent = "После запроса здесь появится результат TMDb";
     rentalMachineMode.textContent = "Колесо или VHS-автомат";
     rentalMachineNote.textContent = "Если кассет слишком много, автомат выберет честно из всего пула.";
     const item = document.createElement("li");
@@ -683,11 +742,17 @@ function renderRentalSession() {
   }
 
   rentalListTitle.textContent = session.queryLabel || "Прокат по запросу";
-  rentalListMeta.textContent = `${session.totalCount} ${tapeWord(session.totalCount)} в полном пуле`;
+  rentalListMeta.textContent = `${session.totalCount} ${pluralizeCassettes(session.totalCount)} в пуле проката`;
   rentalMachineMode.textContent = session.totalCount <= RENTAL_WHEEL_LIMIT ? "Колесо" : "VHS-автомат";
   rentalMachineNote.textContent = session.totalCount <= RENTAL_WHEEL_LIMIT
     ? "Пул достаточно компактный для читаемого колеса."
     : "Пул большой, поэтому выбор будет честно сделан из всего списка.";
+  rentalMachineTitle.textContent = session.totalCount <= RENTAL_WHEEL_LIMIT
+    ? "Пул готов к колесу"
+    : `${session.totalCount} ${pluralizeCassettes(session.totalCount)} в автомате`;
+  rentalMachineText.textContent = state.spinning && isRentalMachineView()
+    ? "Лента перематывает весь пул и ловит случайную кассету."
+    : "Нажми выбор, и автомат достанет одну кассету из полного пула.";
 
   for (const movie of session.items) {
     const item = document.createElement("li");
@@ -935,8 +1000,8 @@ function drawWheel(rotation = state.rotation, options = {}) {
   const cy = height / 2;
   const radius = width * 0.47;
   const settledWheel = !options.movies && state.settledWheel;
-  const movies = options.movies || settledWheel?.movies || auctionMovies();
-  const odds = options.odds || settledWheel?.odds || calculateMovieOdds(movies, state.stakes);
+  const movies = options.movies || settledWheel?.movies || activeWheelMovies();
+  const odds = options.odds || settledWheel?.odds || activeWheelOdds(movies);
   const segments = wheelSegments(movies, odds);
   const scale = options.scale ?? 1;
   const opacity = options.opacity ?? 1;
@@ -997,9 +1062,66 @@ function truncate(value, max) {
   return value.length > max ? value.slice(0, max - 1) + "…" : value;
 }
 
+async function spinRentalMachine() {
+  const session = state.rental.session;
+  if (!session?.id || state.spinning) return;
+
+  state.spinning = true;
+  state.winner = null;
+  state.settledWheel = null;
+  sayMascot("spin");
+  render();
+  playStartSound();
+
+  const startedAt = performance.now();
+  let tapeFrame = 0;
+  const items = session.items || [];
+
+  function frame(now) {
+    if (!state.spinning || !items.length) return;
+    const index = Math.floor((tapeFrame * 7 + now / 85) % items.length);
+    const item = items[index];
+    rentalMachineTitle.textContent = item?.title || "Перемотка пула";
+    rentalMachineText.textContent = `${String(index + 1).padStart(3, "0")} / ${session.totalCount} · случайный прокат`;
+    tapeFrame += 1;
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+
+  try {
+    const payload = await fetchJson(apiEndpoint(`/api/rental/sessions/${session.id}/select`), {
+      method: "POST"
+    });
+    const elapsed = performance.now() - startedAt;
+    if (elapsed < 1400) {
+      await new Promise((resolve) => setTimeout(resolve, 1400 - elapsed));
+    }
+    state.winner = rentalItemToMovie(payload.selectedItem);
+    state.rental.session = {
+      ...state.rental.session,
+      selectedItem: payload.selectedItem,
+      selectionMode: payload.selectionMode
+    };
+    sayMascot("win", state.winner);
+    render();
+    showWinnerPremiere(state.winner);
+  } catch (error) {
+    state.rental.status = rentalErrorMessage(error);
+    sayMascot("empty");
+  } finally {
+    state.spinning = false;
+    render();
+  }
+}
+
 function spin() {
   if (state.spinning) return;
-  const movies = auctionMovies();
+  if (isRentalMachineView()) {
+    spinRentalMachine();
+    return;
+  }
+  const movies = activeWheelMovies();
   if (movies.length < 2) {
     sayMascot("empty");
     playTapeClick();
@@ -1015,7 +1137,7 @@ function spin() {
   render();
   playStartSound();
 
-  const odds = calculateMovieOdds(movies, state.stakes);
+  const odds = activeWheelOdds(movies);
   const segments = wheelSegments(movies, odds);
   const stakesForSpin = { ...state.stakes };
   const selectedWinner = pickMovieByOdds(odds, Math.random);
@@ -1045,10 +1167,12 @@ function spin() {
     state.winner = selectedWinner;
     state.settledWheel = { movies, odds };
     sayMascot("win", state.winner);
-    state.history.unshift({ ...state.winner, wonAt: new Date().toISOString(), stakes: stakesForSpin });
-    state.history = state.history.slice(0, 20);
-    state.stakes = { max: "", olya: "" };
-    save();
+    if (state.mode === "shelf") {
+      state.history.unshift({ ...state.winner, wonAt: new Date().toISOString(), stakes: stakesForSpin });
+      state.history = state.history.slice(0, 20);
+      state.stakes = { max: "", olya: "" };
+      save();
+    }
     render();
     showWinnerPremiere(state.winner);
   }
@@ -1056,7 +1180,7 @@ function spin() {
   requestAnimationFrame(frame);
 }
 
-function movieAtPointer(rotation, movies = auctionMovies(), odds = calculateMovieOdds(movies, state.stakes)) {
+function movieAtPointer(rotation, movies = activeWheelMovies(), odds = activeWheelOdds(movies)) {
   return movieAtPointerFromSegments(movies, rotation, odds);
 }
 
@@ -1203,7 +1327,7 @@ function playTickSound(progress) {
   playNoise(.016, .004, .008 + slow * .006, 480, "lowpass");
 }
 
-function tickWheel(rotation, progress, movies = auctionMovies(), odds = calculateMovieOdds(movies, state.stakes)) {
+function tickWheel(rotation, progress, movies = activeWheelMovies(), odds = activeWheelOdds(movies)) {
   if (!soundEnabled || !movies.length) return;
   const movie = movieAtPointer(rotation, movies, odds);
   const key = movieKey(movie);
@@ -1606,6 +1730,7 @@ rentalPersonInput.addEventListener("input", () => {
   clearTimeout(rentalPersonSearchTimer);
   state.rental.selectedPerson = null;
   state.rental.session = null;
+  state.rental.view = "form";
   rentalPersonSearchTimer = setTimeout(() => searchRentalPeople(rentalPersonInput.value), 320);
   render();
 });
@@ -1619,16 +1744,19 @@ rentalPersonSuggestions.addEventListener("click", (event) => {
   state.rental.selectedPerson = person;
   rentalPersonInput.value = person.name;
   state.rental.status = "Человек выбран. Можно собирать кассеты.";
+  state.rental.view = "form";
   render();
 });
 
 rentalGenreSelect.addEventListener("change", () => {
   state.rental.session = null;
+  state.rental.view = "form";
   render();
 });
 
 rentalIncludeTv.addEventListener("change", () => {
   state.rental.session = null;
+  state.rental.view = "form";
   render();
 });
 
@@ -1638,6 +1766,13 @@ rentalForm.addEventListener("submit", (event) => {
 });
 
 rentalClearButton.addEventListener("click", clearRentalForm);
+
+rentalBackToFormButton.addEventListener("click", () => {
+  state.rental.view = "form";
+  state.winner = null;
+  state.settledWheel = null;
+  render();
+});
 
 async function refreshFromServer() {
   const endpoint = apiEndpoint("/api/refresh");
@@ -1652,10 +1787,40 @@ function apiEndpoint(path) {
   return location.protocol === "file:" ? `http://127.0.0.1:5173${path}` : path;
 }
 
+async function bootRentalCatalog() {
+  await ensureRentalConfig();
+  if (state.rental.configured) ensureRentalGenres();
+}
+
+async function ensureRentalConfig() {
+  if (state.rental.configLoaded || state.rental.configLoading) return;
+  state.rental.configLoading = true;
+  state.rental.configStatus = "Проверяю локальное подключение TMDb.";
+  render();
+
+  try {
+    const payload = await fetchJson(apiEndpoint("/api/rental/config"));
+    state.rental.configured = Boolean(payload.configured);
+    state.rental.configLoaded = true;
+    state.rental.configStatus = state.rental.configured
+      ? "Живой поиск включён. Ключ хранится только локально."
+      : "TMDb не настроен на сервере. Нужна серверная переменная окружения.";
+    state.rental.status = state.rental.configured
+      ? state.rental.status
+      : "Прокат временно недоступен: TMDb не настроен на сервере.";
+  } catch (error) {
+    state.rental.configStatus = rentalErrorMessage(error);
+    state.rental.status = rentalErrorMessage(error);
+  } finally {
+    state.rental.configLoading = false;
+    render();
+  }
+}
+
 async function ensureRentalGenres() {
+  if (!state.rental.configured) return;
   if (state.rental.genresLoaded || state.rental.genresLoading) return;
   state.rental.genresLoading = true;
-  state.rental.errorCode = null;
   state.rental.status = "Загружаю жанры из TMDb.";
   render();
 
@@ -1667,7 +1832,6 @@ async function ensureRentalGenres() {
       ? "Выбери жанр, затем при желании уточни актёра или актрису."
       : "TMDb не вернул жанры. Можно попробовать обновить позже.";
   } catch (error) {
-    state.rental.errorCode = error?.code || null;
     state.rental.status = rentalErrorMessage(error);
   } finally {
     state.rental.genresLoading = false;
@@ -1679,7 +1843,13 @@ async function searchRentalPeople(query) {
   const value = query.trim();
   state.rental.selectedPerson = null;
   state.rental.people = [];
-  state.rental.errorCode = null;
+
+  if (!state.rental.configured) {
+    state.rental.peopleLoading = false;
+    state.rental.status = "Прокат временно недоступен: TMDb не настроен на сервере.";
+    render();
+    return;
+  }
 
   if (value.length < 2) {
     state.rental.peopleLoading = false;
@@ -1700,7 +1870,6 @@ async function searchRentalPeople(query) {
       ? "Выбери конкретного человека из подсказок или собери кассеты только по жанру."
       : "Никого не нашли. Можно собрать кассеты только по жанру.";
   } catch (error) {
-    state.rental.errorCode = error?.code || null;
     state.rental.status = rentalErrorMessage(error);
   } finally {
     state.rental.peopleLoading = false;
@@ -1709,6 +1878,12 @@ async function searchRentalPeople(query) {
 }
 
 async function buildRentalSession() {
+  if (!state.rental.configured) {
+    state.rental.status = "Прокат временно недоступен: TMDb не настроен на сервере.";
+    render();
+    return;
+  }
+
   const genreTmdbId = Number(rentalGenreSelect.value);
   if (!genreTmdbId) {
     state.rental.status = "Сначала выбери жанр.";
@@ -1717,8 +1892,7 @@ async function buildRentalSession() {
   }
 
   state.rental.loading = true;
-  state.rental.errorCode = null;
-  state.rental.status = "Собираю полный пул кассет. Это может занять несколько секунд.";
+  state.rental.status = "Собираю пул кассет. Это может занять несколько секунд.";
   render();
 
   try {
@@ -1732,11 +1906,13 @@ async function buildRentalSession() {
       })
     });
     state.rental.session = payload;
+    state.rental.view = payload.selectionMode === "wheel" && payload.totalCount > 1
+      ? "wheel"
+      : (payload.selectionMode === "vhs_machine" && payload.totalCount > 0 ? "vhs_machine" : "form");
     state.rental.status = payload.totalCount
-      ? `Собрано ${payload.totalCount} ${tapeWord(payload.totalCount)}.`
+      ? `Собрано ${payload.totalCount} ${pluralizeCassettes(payload.totalCount)}.`
       : "По этому запросу кассет не нашли.";
   } catch (error) {
-    state.rental.errorCode = error?.code || null;
     state.rental.status = rentalErrorMessage(error);
   } finally {
     state.rental.loading = false;
@@ -1751,7 +1927,7 @@ function clearRentalForm() {
   state.rental.people = [];
   state.rental.selectedPerson = null;
   state.rental.session = null;
-  state.rental.errorCode = null;
+  state.rental.view = "form";
   state.rental.status = "Можно собрать пул только по жанру или уточнить актёра через поиск.";
   render();
 }
@@ -1803,7 +1979,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 shelfModeButton.addEventListener("click", () => setAppMode("shelf"));
 rentalModeButton.addEventListener("click", () => setAppMode("rental"));
 
-const customButtonSoundSelector = "#spinButton, #soundButton, #autoThemeButton, #dayThemeButton, #nightThemeButton, #shelfModeButton, #rentalModeButton, #genreAllButton, #genreApplyButton, #rentalBuildPoolButton, #rentalClearButton, .rental-person-suggestion, .genre-chip, .stake-button";
+const customButtonSoundSelector = "#spinButton, #soundButton, #autoThemeButton, #dayThemeButton, #nightThemeButton, #shelfModeButton, #rentalModeButton, #genreAllButton, #genreApplyButton, #rentalBuildPoolButton, #rentalClearButton, #rentalBackToFormButton, .rental-person-suggestion, .genre-chip, .stake-button";
 
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : null;
@@ -1814,4 +1990,5 @@ document.addEventListener("click", (event) => {
 
 importFromHash();
 render();
-if (state.mode === "rental") ensureRentalGenres();
+if (state.mode === "rental") bootRentalCatalog();
+

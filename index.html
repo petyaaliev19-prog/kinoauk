@@ -69,10 +69,20 @@
           <div class="empty-wheel-label" id="emptyWheelLabel" aria-hidden="true">Нет фильмов</div>
         </div>
 
+        <section class="rental-machine-stage" id="rentalMachineStage" hidden aria-live="polite">
+          <div class="rental-machine-reels" aria-hidden="true">
+            <span></span>
+            <span></span>
+          </div>
+          <p class="rental-machine-kicker">VHS-АВТОМАТ</p>
+          <strong id="rentalMachineTitle">Пул слишком большой для колеса</strong>
+          <small id="rentalMachineText">Автомат выберет одну кассету честно из всего списка.</small>
+        </section>
+
         <section class="rental-stage" id="rentalStage" hidden aria-labelledby="rentalStageTitle">
           <p class="rental-kicker">TMDb · ВНЕШНИЙ КАТАЛОГ</p>
           <h2 id="rentalStageTitle">Собрать вечер</h2>
-          <p class="rental-copy">Выбери жанр и, если нужно, конкретного человека из каталога. Прокат соберёт полный пул кассет, не трогая домашнюю полку.</p>
+          <p class="rental-copy">Выбери жанр и, если нужно, конкретного человека из каталога. Прокат соберёт большой пул кассет, не трогая домашнюю полку.</p>
           <form class="rental-form" id="rentalForm" aria-label="Форма проката">
             <label class="rental-field">
               <span>Жанр</span>
@@ -122,6 +132,7 @@
         <div class="controls">
           <button class="primary" id="spinButton" type="button">Крутить</button>
           <button id="removeWinnerButton" type="button">Убрать победителя</button>
+          <button class="rental-back-button" id="rentalBackToFormButton" type="button">Вернуться к сбору</button>
         </div>
 
         <div class="winner" id="winnerBox" hidden>
@@ -190,7 +201,7 @@
           <div class="rental-list-heading">
             <span>КАССЕТЫ ПО ЗАПРОСУ</span>
             <strong id="rentalListTitle">Пул ещё не собран</strong>
-            <small id="rentalListMeta">После запроса здесь будет полный результат TMDb</small>
+            <small id="rentalListMeta">После запроса здесь появится результат TMDb</small>
           </div>
           <ol class="rental-tape-list" id="rentalTapeList" aria-label="Список фильмов проката">
             <li class="rental-empty-row"><strong>Список появится после сборки кассет</strong></li>

@@ -5,15 +5,18 @@ const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const DEFAULT_LANGUAGE = "ru-RU";
 const DEFAULT_PERSON_LIMIT = 8;
 const RENTAL_MEDIA_TYPES = new Set(["movie", "tv"]);
-const MAX_DISCOVER_PAGES = 500;
+const MAX_DISCOVER_PAGES = 20;
+const DEFAULT_DISCOVER_CONCURRENCY = 10;
+const TMDB_TOKEN_NAMES = ["TMDB_API_TOKEN", "TMDB_READ_ACCESS_TOKEN", "TMDB_BEARER_TOKEN", "TMDB_TOKEN"];
+const TMDB_API_KEY_NAME = "TMDB_API_KEY";
 
 function readDotEnv(envPath = path.join(__dirname, ".env")) {
   try {
     const text = fs.readFileSync(envPath, "utf8");
     const values = {};
 
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
+    for (const line of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
+      const trimmed = line.trim().replace(/^\uFEFF/, "");
       if (!trimmed || trimmed.startsWith("#")) continue;
       const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(trimmed);
       if (!match) continue;
@@ -34,7 +37,21 @@ function readDotEnv(envPath = path.join(__dirname, ".env")) {
 }
 
 function tmdbToken(env = process.env, envPath) {
-  return String(env.TMDB_API_TOKEN || readDotEnv(envPath).TMDB_API_TOKEN || "").trim();
+  const dotEnv = readDotEnv(envPath);
+  for (const name of TMDB_TOKEN_NAMES) {
+    const token = String(env[name] || dotEnv[name] || "").trim();
+    if (token) return token;
+  }
+  return "";
+}
+
+function tmdbCredential(env = process.env, envPath) {
+  const dotEnv = readDotEnv(envPath);
+  const token = tmdbToken(env, envPath);
+  if (token) return { token };
+
+  const apiKey = String(env[TMDB_API_KEY_NAME] || dotEnv[TMDB_API_KEY_NAME] || "").trim();
+  return apiKey ? { apiKey } : null;
 }
 
 function tmdbAuthHeaders(token) {
@@ -45,9 +62,12 @@ function tmdbAuthHeaders(token) {
 }
 
 async function tmdbGet(pathname, params = {}, options = {}) {
-  const token = options.token || tmdbToken(options.env, options.envPath);
-  if (!token) {
-    const error = new Error("TMDB_API_TOKEN is not configured.");
+  const credential = options.token || options.apiKey
+    ? { token: options.token, apiKey: options.apiKey }
+    : tmdbCredential(options.env, options.envPath);
+
+  if (!credential?.token && !credential?.apiKey) {
+    const error = new Error("TMDb credentials are not configured.");
     error.code = "TMDB_TOKEN_MISSING";
     throw error;
   }
@@ -57,8 +77,11 @@ async function tmdbGet(pathname, params = {}, options = {}) {
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   }
+  if (credential.apiKey) url.searchParams.set("api_key", credential.apiKey);
 
-  const response = await fetchImpl(url, { headers: tmdbAuthHeaders(token) });
+  const response = await fetchImpl(url, {
+    headers: credential.token ? tmdbAuthHeaders(credential.token) : { accept: "application/json" }
+  });
   if (!response.ok) {
     const error = new Error(`TMDb request failed with ${response.status}.`);
     error.code = "TMDB_REQUEST_FAILED";
@@ -107,19 +130,38 @@ async function fetchTmdbPersonCredits(personTmdbId, mediaType, options = {}) {
 
 async function fetchTmdbDiscoverPool(mediaType, filters = {}, options = {}) {
   assertRentalMediaType(mediaType);
-  const items = [];
   const baseParams = buildDiscoverParams(mediaType, filters, options.language || DEFAULT_LANGUAGE);
-  let page = 1;
-  let totalPages = 1;
+  const maxPages = Math.max(1, Number(options.maxPages || MAX_DISCOVER_PAGES));
+  const firstPayload = await tmdbGet(`/discover/${mediaType}`, { ...baseParams, page: 1 }, options);
+  const totalPages = Math.min(Number(firstPayload.total_pages || 1), maxPages);
+  const pages = [{
+    page: 1,
+    items: normalizeTmdbMediaList(firstPayload.results || [], mediaType)
+  }];
 
-  while (page <= totalPages && page <= (options.maxPages || MAX_DISCOVER_PAGES)) {
-    const payload = await tmdbGet(`/discover/${mediaType}`, { ...baseParams, page }, options);
-    items.push(...normalizeTmdbMediaList(payload.results || [], mediaType));
-    totalPages = Math.min(Number(payload.total_pages || 1), options.maxPages || MAX_DISCOVER_PAGES);
-    page += 1;
+  const remainingPages = [];
+  for (let page = 2; page <= totalPages; page += 1) remainingPages.push(page);
+
+  const concurrency = Math.max(1, Number(options.concurrency || DEFAULT_DISCOVER_CONCURRENCY));
+  for (let index = 0; index < remainingPages.length; index += concurrency) {
+    const batch = remainingPages.slice(index, index + concurrency);
+    const payloads = await Promise.all(
+      batch.map(async (page) => ({
+        page,
+        payload: await tmdbGet(`/discover/${mediaType}`, { ...baseParams, page }, options)
+      }))
+    );
+    for (const { page, payload } of payloads) {
+      pages.push({
+        page,
+        items: normalizeTmdbMediaList(payload.results || [], mediaType)
+      });
+    }
   }
 
-  return items;
+  return pages
+    .sort((left, right) => left.page - right.page)
+    .flatMap((page) => page.items);
 }
 
 function assertRentalMediaType(mediaType) {
@@ -283,6 +325,7 @@ function saveTmdbGenres(database, genres) {
 
 module.exports = {
   DEFAULT_PERSON_LIMIT,
+  DEFAULT_DISCOVER_CONCURRENCY,
   MAX_DISCOVER_PAGES,
   RENTAL_MEDIA_TYPES,
   assertRentalMediaType,
@@ -300,5 +343,6 @@ module.exports = {
   saveTmdbPeople,
   searchTmdbPeople,
   tmdbGet,
+  tmdbCredential,
   tmdbToken
 };

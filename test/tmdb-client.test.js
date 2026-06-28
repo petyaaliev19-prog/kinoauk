@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const { Readable, Writable } = require("node:stream");
 const test = require("node:test");
 
@@ -6,6 +9,7 @@ const { openRentalDatabase } = require("../rental-db");
 const {
   buildRentalPool,
   createRentalSession,
+  getRentalConfig,
   getRentalGenres,
   getRentalSession,
   normalizeRentalSessionFilters,
@@ -23,6 +27,7 @@ const {
   saveTmdbGenres,
   saveTmdbPeople,
   searchTmdbPeople,
+  tmdbCredential,
   tmdbToken
 } = require("../tmdb-client");
 
@@ -52,6 +57,21 @@ test("readDotEnv and tmdbToken read TMDb token without exposing it to the browse
 
   assert.deepEqual(values, {});
   assert.equal(tmdbToken({ TMDB_API_TOKEN: " token-123 " }, "__missing_kinoauk_env_file__"), "token-123");
+  assert.equal(tmdbToken({ TMDB_READ_ACCESS_TOKEN: " read-token " }, "__missing_kinoauk_env_file__"), "read-token");
+  assert.equal(tmdbToken({ TMDB_BEARER_TOKEN: " bearer-token " }, "__missing_kinoauk_env_file__"), "bearer-token");
+  assert.equal(tmdbToken({ TMDB_TOKEN: " short-token " }, "__missing_kinoauk_env_file__"), "short-token");
+  assert.deepEqual(tmdbCredential({ TMDB_API_KEY: " api-key-123 " }, "__missing_kinoauk_env_file__"), { apiKey: "api-key-123" });
+});
+
+test("readDotEnv accepts Windows UTF-8 BOM files", () => {
+  const envPath = path.join(os.tmpdir(), `kinoauk-env-${Date.now()}.env`);
+  try {
+    fs.writeFileSync(envPath, "\uFEFFTMDB_API_KEY=api-key-from-bom\n", "utf8");
+    assert.deepEqual(readDotEnv(envPath), { TMDB_API_KEY: "api-key-from-bom" });
+    assert.deepEqual(tmdbCredential({}, envPath), { apiKey: "api-key-from-bom" });
+  } finally {
+    fs.rmSync(envPath, { force: true });
+  }
 });
 
 test("normalizeTmdbPeople keeps compact person suggestions and known titles", () => {
@@ -115,6 +135,26 @@ test("searchTmdbPeople calls TMDb person search only and normalizes candidates",
   assert.equal(calls[0].options.headers.authorization, "Bearer test-token");
   assert.equal(results[0].tmdbId, 287);
   assert.equal(results[0].name, "Brad Pitt");
+});
+
+test("searchTmdbPeople supports TMDb API key credentials", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return {
+      ok: true,
+      async json() {
+        return { results: [] };
+      }
+    };
+  };
+
+  await searchTmdbPeople("James", { fetchImpl, apiKey: "api-key-123" });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url.searchParams.get("api_key"), "api-key-123");
+  assert.equal(calls[0].options.headers.authorization, undefined);
+  assert.equal(calls[0].options.headers.accept, "application/json");
 });
 
 test("fetchTmdbGenres calls the matching TMDb genre endpoint and normalizes media type", async () => {
@@ -220,6 +260,25 @@ test("searchRentalPeople returns a clear error when TMDb token is missing", asyn
 
   assert.equal(response.statusCode, 503);
   assert.equal(response.body().error, "TMDB_TOKEN_MISSING");
+});
+
+test("rental config reports server-side TMDb credentials without exposing the secret", () => {
+  const envPath = path.join(os.tmpdir(), `kinoauk-rental-config-${Date.now()}.env`);
+  const emptyResponse = createJsonResponse();
+  const configuredResponse = createJsonResponse();
+
+  try {
+    getRentalConfig(emptyResponse, { env: {}, envPath });
+    assert.deepEqual(emptyResponse.body(), { configured: false, kind: null });
+
+    fs.writeFileSync(envPath, "TMDB_API_KEY=api-key-123\n", "utf8");
+
+    getRentalConfig(configuredResponse, { env: {}, envPath });
+    assert.deepEqual(configuredResponse.body(), { configured: true, kind: "apiKey" });
+    assert.equal(JSON.stringify(configuredResponse.body()).includes("api-key-123"), false);
+  } finally {
+    fs.rmSync(envPath, { force: true });
+  }
 });
 
 test("searchRentalPeople uses mocked fetch and stores exact people, not movie pools", async () => {
@@ -486,6 +545,7 @@ test("createRentalSession stores the full filtered pool and getRentalSession rea
     const created = createResponse.body();
     assert.equal(createResponse.statusCode, 200);
     assert.equal(created.totalCount, 2);
+    assert.equal(created.selectionMode, "wheel");
     assert.equal(created.items.length, 2);
     assert.match(created.queryLabel, /Brad Pitt/);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM rental_sessions").get().count, 1);

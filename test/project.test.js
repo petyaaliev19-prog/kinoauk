@@ -156,7 +156,7 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");
 
-  for (const id of ["rentalForm", "rentalGenreSelect", "rentalPersonInput", "rentalIncludeTv", "rentalBuildPoolButton", "rentalClearButton", "rentalTapeList"]) {
+  for (const id of ["rentalForm", "rentalGenreSelect", "rentalPersonInput", "rentalIncludeTv", "rentalBuildPoolButton", "rentalClearButton", "rentalBackToFormButton", "rentalTapeList"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /Собрать вечер/);
@@ -167,14 +167,28 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   assert.match(html, /Колесо или VHS-автомат/);
   assert.match(html, /«Наша видеотека» появится отдельной будущей задачей/);
   assert.doesNotMatch(html, /Brad Pitt|Michael Pitt|Питт|Fight Club|Snatch|Mr\. &amp; Mrs\. Smith/);
+  assert.doesNotMatch(html, /TMDb ещё не подключён|Ключ TMDb|Read Access Token|API Key|Подключить/);
   assert.doesNotMatch(html, /режим «наша видеотека»/i);
   assert.match(app, /ensureRentalGenres/);
   assert.match(app, /searchRentalPeople/);
   assert.match(app, /buildRentalSession/);
+  assert.match(app, /rentalWheelItems/);
+  assert.match(app, /view: "form"/);
+  assert.match(app, /state\.rental\.view = payload\.selectionMode === "wheel"/);
+  assert.match(app, /rental-wheel-ready/);
+  assert.match(app, /pluralizeCassettes\(state\.rental\.session\.totalCount\)/);
+  assert.doesNotMatch(app, /tapeWord\(/);
+  assert.match(app, /\/api\/rental\/config/);
+  assert.doesNotMatch(app, /rentalPersonInput\.disabled = !rentalReady/);
+  assert.doesNotMatch(app, /rentalGenreSelect\.disabled = !rentalReady/);
   assert.match(app, /\/api\/rental\/genres\?mediaType=movie/);
   assert.match(app, /\/api\/rental\/people\?q=/);
   assert.match(app, /\/api\/rental\/sessions/);
   assert.match(css, /\.rental-form/);
+  assert.match(css, /rental-wheel-ready \.wheel-wrap/);
+  assert.match(css, /\.rental-stage\.is-collapsed/);
+  assert.match(css, /@keyframes rentalWheelIn/);
+  assert.match(css, /\.rental-back-button/);
   assert.match(css, /\.rental-person-suggestions/);
   assert.match(css, /\.rental-empty-hint/);
   assert.match(css, /\.rental-checkbox/);
@@ -186,8 +200,9 @@ test("settled spin keeps its weighted sector layout after stakes are cleared", (
 
   assert.match(app, /settledWheel: null/);
   assert.match(app, /state\.settledWheel = \{ movies, odds \}/);
-  assert.match(app, /settledWheel\?\.odds \|\| calculateMovieOdds/);
-  assert.match(app, /state\.stakes = \{ max: "", olya: "" \};\s*save\(\);\s*render\(\);/);
+  assert.match(app, /settledWheel\?\.odds \|\| activeWheelOdds/);
+  assert.match(app, /if \(state\.mode === "shelf"\)/);
+  assert.match(app, /state\.stakes = \{ max: "", olya: "" \};\s*save\(\);/);
 });
 
 test("spin uses whole turns before aiming the chosen sector at the pointer", () => {

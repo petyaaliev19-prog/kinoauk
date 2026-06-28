@@ -11,7 +11,7 @@ const {
   saveTmdbGenres,
   saveTmdbPeople,
   searchTmdbPeople,
-  tmdbToken
+  tmdbCredential
 } = require("./tmdb-client");
 
 const root = __dirname;
@@ -43,6 +43,11 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === "/api/rental/genres" && req.method === "GET") {
     getRentalGenres(url, res);
+    return;
+  }
+
+  if (url.pathname === "/api/rental/config" && req.method === "GET") {
+    getRentalConfig(res);
     return;
   }
 
@@ -132,9 +137,9 @@ async function searchRentalPeople(url, res, options = {}) {
     return;
   }
 
-  const token = tmdbToken(options.env, options.envPath);
-  if (!token) {
-    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDB_API_TOKEN не настроен на локальном сервере." });
+  const credential = tmdbCredential(options.env, options.envPath);
+  if (!credential) {
+    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDb credentials не настроены на локальном сервере." });
     return;
   }
 
@@ -146,7 +151,7 @@ async function searchRentalPeople(url, res, options = {}) {
       fetchImpl: options.fetchImpl,
       language: options.language,
       limit: options.limit,
-      token
+      ...credential
     });
     saveTmdbPeople(database, results);
     sendJson(res, 200, { results });
@@ -167,9 +172,9 @@ async function getRentalGenres(url, res, options = {}) {
     return;
   }
 
-  const token = tmdbToken(options.env, options.envPath);
-  if (!token) {
-    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDB_API_TOKEN не настроен на локальном сервере." });
+  const credential = tmdbCredential(options.env, options.envPath);
+  if (!credential) {
+    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDb credentials не настроены на локальном сервере." });
     return;
   }
 
@@ -180,7 +185,7 @@ async function getRentalGenres(url, res, options = {}) {
     const genres = await fetchTmdbGenres(mediaType, {
       fetchImpl: options.fetchImpl,
       language: options.language,
-      token
+      ...credential
     });
     saveTmdbGenres(database, genres);
     sendJson(res, 200, { mediaType, genres });
@@ -192,6 +197,14 @@ async function getRentalGenres(url, res, options = {}) {
   }
 }
 
+function getRentalConfig(res, options = {}) {
+  const credential = tmdbCredential(options.env, options.envPath);
+  sendJson(res, 200, {
+    configured: Boolean(credential),
+    kind: credential?.apiKey ? "apiKey" : credential?.token ? "token" : null
+  });
+}
+
 async function createRentalSession(req, res, options = {}) {
   let filters;
   try {
@@ -201,9 +214,9 @@ async function createRentalSession(req, res, options = {}) {
     return;
   }
 
-  const token = tmdbToken(options.env, options.envPath);
-  if (!token) {
-    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDB_API_TOKEN не настроен на локальном сервере." });
+  const credential = tmdbCredential(options.env, options.envPath);
+  if (!credential) {
+    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDb credentials не настроены на локальном сервере." });
     return;
   }
 
@@ -214,7 +227,7 @@ async function createRentalSession(req, res, options = {}) {
     const items = await buildRentalPool(filters, database, {
       fetchImpl: options.fetchImpl,
       language: options.language,
-      token,
+      ...credential,
       maxPages: options.maxPages
     });
     const sessionId = saveRentalSession(database, filters, items);
@@ -426,12 +439,13 @@ function savePoolPeople(database, filters) {
 
 function saveRentalSession(database, filters, items) {
   const mediaIds = upsertRentalMedia(database, items);
+  const selectionMode = selectionModeForPool(items.length);
   const insertSession = database.prepare(`
     INSERT INTO rental_sessions (query_label, filters_json, source, total_count, selection_mode)
-    VALUES (?, ?, 'tmdb', ?, NULL)
+    VALUES (?, ?, 'tmdb', ?, ?)
     RETURNING id
   `);
-  const sessionId = insertSession.get(buildRentalQueryLabel(database, filters), JSON.stringify(filters), items.length).id;
+  const sessionId = insertSession.get(buildRentalQueryLabel(database, filters), JSON.stringify(filters), items.length, selectionMode).id;
   const insertItem = database.prepare(`
     INSERT INTO rental_session_items (session_id, media_id, tmdb_rank, random_order)
     VALUES (?, ?, ?, ?)
@@ -789,6 +803,7 @@ module.exports = {
   DEFAULT_RENTAL_WHEEL_LIMIT,
   fetchKinopoiskHtml,
   fetchKinopoiskMovies,
+  getRentalConfig,
   getRentalGenres,
   getRentalSession,
   normalizeRentalSessionFilters,
