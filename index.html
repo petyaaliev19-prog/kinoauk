@@ -27,6 +27,7 @@
         <div class="winner-modal-copy">
           <p id="winnerModalMeta">VHS PREMIERE</p>
           <h2 id="winnerModalTitle"></h2>
+          <div class="winner-modal-details" id="winnerModalDetails" aria-live="polite"></div>
           <div class="winner-modal-actions">
             <button class="primary" id="watchWinnerButton" type="button">Оставить и смотреть</button>
             <button id="modalRemoveWinnerButton" type="button">Убрать победителя</button>
@@ -89,7 +90,7 @@
         <section class="rental-stage" id="rentalStage" hidden aria-labelledby="rentalStageTitle">
           <p class="rental-kicker">TMDb · ВНЕШНИЙ КАТАЛОГ</p>
           <h2 id="rentalStageTitle">Собрать вечер</h2>
-          <p class="rental-copy">Выбери жанр и, если нужно, конкретного человека из каталога. Прокат соберёт большой пул кассет, не трогая домашнюю полку.</p>
+          <p class="rental-copy">Задай желаемые фильтры.</p>
           <form class="rental-form rental-console" id="rentalForm" aria-label="Форма проката">
             <section class="rental-console-section rental-console-catalog" aria-label="Тип каталога">
               <p class="rental-console-label">Каталог</p>
@@ -128,17 +129,39 @@
             <section class="rental-console-section rental-console-fine" aria-label="Уточняющие фильтры">
               <p class="rental-console-label">Уточнить выдачу</p>
               <div class="rental-filter-grid rental-filter-grid-compact">
-                <div class="rental-range-field">
-                  <span>Год</span>
-                  <div class="rental-range-inputs">
-                    <input id="rentalYearFrom" type="number" inputmode="numeric" min="1900" max="2100" placeholder="от">
-                    <input id="rentalYearTo" type="number" inputmode="numeric" min="1900" max="2100" placeholder="до">
+                <div class="rental-preset-field">
+                  <span>Эпоха</span>
+                  <input id="rentalYearFrom" type="hidden">
+                  <input id="rentalYearTo" type="hidden">
+                  <div class="rental-preset-row" aria-label="Эпоха выпуска">
+                    <button class="active" type="button" data-year-preset="" aria-pressed="true">любая</button>
+                    <button type="button" data-year-preset="1980:1989" aria-pressed="false">80-е</button>
+                    <button type="button" data-year-preset="1990:1999" aria-pressed="false">90-е</button>
+                    <button type="button" data-year-preset="2000:2009" aria-pressed="false">00-е</button>
+                    <button type="button" data-year-preset="2010:2019" aria-pressed="false">10-е</button>
+                    <button type="button" data-year-preset="2020:" aria-pressed="false">2020+</button>
                   </div>
                 </div>
-                <label class="rental-field">
-                  <span>Рейтинг от</span>
-                  <input id="rentalRatingFrom" type="number" inputmode="decimal" min="0" max="10" step="0.1" placeholder="любой">
-                </label>
+                <div class="rental-preset-field">
+                  <span>Оценка</span>
+                  <input id="rentalRatingFrom" type="hidden">
+                  <div class="rental-preset-row rental-preset-row-tight" aria-label="Минимальный рейтинг">
+                    <button class="active" type="button" data-rating-preset="" aria-pressed="true">любая</button>
+                    <button type="button" data-rating-preset="6" aria-pressed="false">6+</button>
+                    <button type="button" data-rating-preset="7" aria-pressed="false">7+</button>
+                    <button type="button" data-rating-preset="7.5" aria-pressed="false">7.5+</button>
+                  </div>
+                </div>
+                <div class="rental-preset-field">
+                  <span>Известность</span>
+                  <input id="rentalVotesFrom" type="hidden">
+                  <div class="rental-preset-row rental-preset-row-tight" aria-label="Минимум голосов TMDb">
+                    <button class="active" type="button" data-votes-preset="" aria-pressed="true">любая</button>
+                    <button type="button" data-votes-preset="50" aria-pressed="false">50+</button>
+                    <button type="button" data-votes-preset="200" aria-pressed="false">200+</button>
+                    <button type="button" data-votes-preset="1000" aria-pressed="false">1000+</button>
+                  </div>
+                </div>
                 <label class="rental-field">
                   <span>Страна</span>
                   <select id="rentalCountrySelect">
@@ -205,8 +228,8 @@
 
         <div class="tab-panel active" id="listPanel" role="tabpanel" aria-labelledby="listTab">
           <form class="add-form" id="addForm">
-            <input id="movieTitle" name="title" type="text" placeholder="Название фильма" autocomplete="off">
-            <input id="movieUrl" name="url" type="url" placeholder="Ссылка">
+            <input id="movieTitle" name="title" type="text" placeholder="Название фильма" autocomplete="off" required>
+            <input id="movieUrl" name="url" type="url" placeholder="Ссылка (необязательно)">
             <button type="submit" title="Добавить" aria-label="Добавить фильм">+</button>
           </form>
 

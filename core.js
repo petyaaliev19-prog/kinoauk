@@ -19,9 +19,17 @@
     const poster = String(input.poster || input.image || input.cover || fallbackPoster).trim();
     const year = String(input.year || "").trim();
     const genre = normalizeGenre(input.genre || input.genres || "");
+    const owners = normalizeOwners(input.owners || input.owner || input.sourceOwners || []);
     if (!title) return null;
 
-    return { title, url, poster, year, genre };
+    return {
+      title,
+      url,
+      poster,
+      year,
+      genre,
+      ...(owners.length ? { owners } : {})
+    };
   }
 
   function mergeMovieList(existingMovies, nextMovies, options = {}) {
@@ -37,10 +45,12 @@
       const normalized = normalizeMovie(movie, options);
       if (!normalized) continue;
       const key = movieKey(normalized);
+      const current = byKey.get(key);
       byKey.set(key, {
         ...normalized,
-        ...byKey.get(key),
-        ...removeEmptyFields(normalized, options)
+        ...current,
+        ...removeEmptyFields(normalized, options),
+        ...mergeOwnerFields(current, normalized)
       });
     }
 
@@ -58,6 +68,20 @@
 
   function movieMetaLabel(movie) {
     return [movie?.year, movie?.genre].filter(Boolean).join(" · ");
+  }
+
+  function movieOwners(movie) {
+    return normalizeOwners(movie?.owners || movie?.owner || movie?.sourceOwners || []);
+  }
+
+  function movieOwnerLabel(movie) {
+    const owners = movieOwners(movie);
+    const hasMaxim = owners.includes("maxim");
+    const hasOlya = owners.includes("olya");
+    if (hasMaxim && hasOlya) return "Фильм общий";
+    if (hasMaxim) return "Фильм Максима";
+    if (hasOlya) return "Фильм Оли";
+    return "";
   }
 
   function movieGenres(movie) {
@@ -221,9 +245,22 @@
   function removeEmptyFields(movie, options = {}) {
     return Object.fromEntries(Object.entries(movie).filter(([key, value]) => {
       if (value === "") return false;
+      if (Array.isArray(value) && !value.length) return false;
       if (key === "poster" && options.fallbackPoster && value === options.fallbackPoster) return false;
       return true;
     }));
+  }
+
+  function normalizeOwners(value) {
+    const values = Array.isArray(value) ? value : [value];
+    return [...new Set(values
+      .map((item) => String(item || "").trim().toLowerCase())
+      .filter((item) => ["maxim", "olya"].includes(item)))];
+  }
+
+  function mergeOwnerFields(current, normalized) {
+    const owners = normalizeOwners([...(current?.owners || []), ...(normalized?.owners || [])]);
+    return owners.length ? { owners } : {};
   }
 
   return {
@@ -238,6 +275,8 @@
     movieGenres,
     movieAtPointerFromRotation,
     movieAtPointerFromSegments,
+    movieOwnerLabel,
+    movieOwners,
     movieMetaLabel,
     movieKey,
     normalizeMovie,

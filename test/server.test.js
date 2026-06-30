@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { parseKinopoiskHtml } = require("../server");
+const { fetchKinopoiskMovies, parseKinopoiskHtml } = require("../server");
 
 test("parseKinopoiskHtml extracts title, URL, poster, year, and genre", () => {
   const html = `
@@ -37,4 +37,35 @@ test("parseKinopoiskHtml supports series links and deduplicates repeated anchors
 
 test("parseKinopoiskHtml ignores anchors without usable titles", () => {
   assert.deepEqual(parseKinopoiskHtml('<a href="/film/1/"></a>'), []);
+});
+
+test("fetchKinopoiskMovies loads sources in parallel and merges movie owners", async () => {
+  const html = (id, title) => `<a href="/film/${id}/"><span>${title}</span><span>2000, drama</span></a>`;
+  const sources = [
+    { owner: "maxim", url: "https://kp/max/" },
+    { owner: "olya", url: "https://kp/olya/" }
+  ];
+  const calls = [];
+  const movies = await fetchKinopoiskMovies({
+    sources,
+    fetchHtml: async (href) => {
+      const url = new URL(href);
+      const page = url.searchParams.get("page");
+      calls.push(`${url.pathname}:${page}`);
+      if (url.pathname === "/max/" && page === "1") return html(1, "Max Movie") + html(2, "Shared Movie");
+      if (url.pathname === "/olya/" && page === "1") return html(2, "Shared Movie");
+      if (url.pathname === "/olya/" && page === "2") return html(3, "Olya Movie");
+      return "";
+    }
+  });
+
+  assert.deepEqual(calls.slice(0, 2).sort(), ["/max/:1", "/olya/:1"]);
+  assert.deepEqual(
+    movies.map((movie) => [movie.title, movie.owners]),
+    [
+      ["Max Movie", ["maxim"]],
+      ["Shared Movie", ["maxim", "olya"]],
+      ["Olya Movie", ["olya"]]
+    ]
+  );
 });

@@ -9,8 +9,10 @@ const { openRentalDatabase } = require("../rental-db");
 const {
   buildRentalPool,
   createRentalSession,
+  deleteRentalItem,
   getRentalConfig,
   getRentalGenres,
+  getRentalMediaDetails,
   getRentalSession,
   normalizeRentalSessionFilters,
   readRentalSession,
@@ -21,6 +23,7 @@ const {
 } = require("../server");
 const {
   fetchTmdbGenres,
+  fetchTmdbMediaDetails,
   normalizeTmdbGenres,
   normalizeTmdbPeople,
   readDotEnv,
@@ -29,6 +32,7 @@ const {
   searchTmdbPeople,
   tmdbCredential,
   tmdbDiscoverMaxPages,
+  tmdbDiscoverPagePlan,
   tmdbToken
 } = require("../tmdb-client");
 
@@ -189,6 +193,57 @@ test("fetchTmdbGenres calls the matching TMDb genre endpoint and normalizes medi
 
 test("normalizeTmdbGenres rejects unsupported rental media types", () => {
   assert.throws(() => normalizeTmdbGenres([{ id: 1, name: "Broken" }], "person"), /movie or tv/);
+});
+
+test("fetchTmdbMediaDetails enriches a movie winner with first-layer details", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    return {
+      ok: true,
+      async json() {
+        return {
+          id: 35,
+          title: "American Comedy",
+          original_title: "American Comedy",
+          release_date: "2004-06-18",
+          runtime: 96,
+          genres: [{ id: 35, name: "Comedy" }],
+          production_countries: [{ iso_3166_1: "US", name: "United States of America" }],
+          overview: "A compact evening comedy.",
+          vote_average: 6.8,
+          vote_count: 1200,
+          poster_path: "/poster.jpg",
+          credits: {
+            cast: [
+              { id: 1, name: "Lead Actor", character: "Lead" },
+              { id: 2, name: "Second Actor", character: "Friend" }
+            ],
+            crew: [{ id: 3, name: "Comedy Director", job: "Director", department: "Directing" }]
+          },
+          "watch/providers": {
+            results: {
+              RU: {
+                link: "https://watch.example/movie",
+                flatrate: [{ provider_id: 10, provider_name: "Cinema Plus", logo_path: "/logo.png" }]
+              }
+            }
+          }
+        };
+      }
+    };
+  };
+
+  const details = await fetchTmdbMediaDetails("movie", 35, { fetchImpl, token: "test-token" });
+
+  assert.equal(calls[0].pathname, "/3/movie/35");
+  assert.equal(calls[0].searchParams.get("append_to_response"), "credits,watch/providers");
+  assert.equal(details.runtimeMinutes, 96);
+  assert.deepEqual(details.originCountry, ["US"]);
+  assert.deepEqual(details.genres, [{ tmdbId: 35, name: "Comedy" }]);
+  assert.equal(details.directors[0].name, "Comedy Director");
+  assert.deepEqual(details.cast.map((person) => person.name), ["Lead Actor", "Second Actor"]);
+  assert.equal(details.watchProviders.flatrate[0].name, "Cinema Plus");
 });
 
 test("saveTmdbPeople upserts person suggestions into local SQLite", () => {
@@ -395,6 +450,42 @@ test("getRentalGenres uses mocked fetch and caches movie/tv genres without mixin
   }
 });
 
+test("getRentalMediaDetails returns enriched winner details without exposing credentials", async () => {
+  const response = createJsonResponse();
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return {
+      ok: true,
+      async json() {
+        return {
+          id: 35,
+          title: "American Comedy",
+          release_date: "2004-06-18",
+          runtime: 96,
+          genres: [{ id: 35, name: "Comedy" }],
+          production_countries: [{ iso_3166_1: "US", name: "United States of America" }],
+          credits: { cast: [], crew: [] },
+          "watch/providers": { results: {} }
+        };
+      }
+    };
+  };
+
+  await getRentalMediaDetails(response, "movie", 35, {
+    env: { TMDB_API_TOKEN: "test-token" },
+    fetchImpl
+  });
+
+  const body = response.body();
+  assert.equal(response.statusCode, 200);
+  assert.equal(calls[0].url.pathname, "/3/movie/35");
+  assert.equal(calls[0].options.headers.authorization, "Bearer test-token");
+  assert.equal(body.details.title, "American Comedy");
+  assert.equal(body.details.runtimeMinutes, 96);
+  assert.equal(JSON.stringify(body).includes("test-token"), false);
+});
+
 test("normalizeRentalSessionFilters allows an unfiltered media-type pool", () => {
   const movieFilters = normalizeRentalSessionFilters({});
   assert.deepEqual(movieFilters.genreTmdbIds, []);
@@ -415,7 +506,8 @@ test("buildRentalPool treats legacy includeTv as the selected tv catalog", async
         async json() {
           return {
             cast: [
-              { id: 9001, name: "King of the Hill", first_air_date: "2003-01-01", genre_ids: [18], vote_average: 7.1, origin_country: ["US"] }
+              { id: 9001, name: "King of the Hill", first_air_date: "2003-01-01", genre_ids: [18], vote_average: 7.1, vote_count: 1200, origin_country: ["US"] },
+              { id: 9002, name: "Barely Seen Pilot", first_air_date: "2003-01-01", genre_ids: [18], vote_average: 8.1, vote_count: 12, origin_country: ["US"] }
             ],
             crew: []
           };
@@ -428,7 +520,8 @@ test("buildRentalPool treats legacy includeTv as the selected tv catalog", async
   const filters = normalizeRentalSessionFilters({
     genreTmdbIds: [18],
     actorTmdbId: 287,
-    includeTv: true
+    includeTv: true,
+    voteCountFrom: 200
   });
 
   const items = await buildRentalPool(filters, openRentalDatabase(":memory:"), {
@@ -455,8 +548,8 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
             page: 1,
             total_pages: 2,
             results: [
-              { id: 1, title: "Page One", release_date: "2001-01-01", genre_ids: [28], vote_average: 7.2, origin_country: ["US"] },
-              { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3, origin_country: ["US"] }
+              { id: 1, title: "Page One", release_date: "2001-01-01", genre_ids: [28], vote_average: 7.2, vote_count: 300, origin_country: ["US"] },
+              { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3, vote_count: 400, origin_country: ["US"] }
             ]
           };
         }
@@ -464,8 +557,8 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
           page: 2,
           total_pages: 2,
           results: [
-            { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3, origin_country: ["US"] },
-            { id: 3, title: "Page Two", release_date: "2003-01-01", genre_ids: [28], vote_average: 7.4, origin_country: ["US"] }
+            { id: 2, title: "Shared", release_date: "2002-01-01", genre_ids: [28], vote_average: 7.3, vote_count: 400, origin_country: ["US"] },
+            { id: 3, title: "Page Two", release_date: "2003-01-01", genre_ids: [28], vote_average: 7.4, vote_count: 500, origin_country: ["US"] }
           ]
         };
       }
@@ -478,6 +571,7 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
     yearFrom: 2001,
     yearTo: 2003,
     voteAverageFrom: 7,
+    voteCountFrom: 200,
     countries: ["US"]
   });
 
@@ -490,8 +584,44 @@ test("buildRentalPool fetches all discover pages and deduplicates by tmdb id plu
   assert.match(calls[0], /primary_release_date\.gte=2001-01-01/);
   assert.match(calls[0], /primary_release_date\.lte=2003-12-31/);
   assert.match(calls[0], /vote_average\.gte=7/);
+  assert.match(calls[0], /vote_count\.gte=200/);
   assert.match(calls[0], /with_origin_country=US/);
   assert.deepEqual(items.map((item) => item.title), ["Page One", "Shared", "Page Two"]);
+});
+
+test("buildRentalPool trusts movie discover country filtering when results omit origin country", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(`${url.pathname}?${url.searchParams.toString()}`);
+    return {
+      ok: true,
+      async json() {
+        return {
+          page: 1,
+          total_pages: 1,
+          results: [
+            { id: 35, title: "American Comedy", release_date: "2004-06-18", genre_ids: [35], vote_average: 6.8 }
+          ]
+        };
+      }
+    };
+  };
+
+  const filters = normalizeRentalSessionFilters({
+    genreTmdbIds: [35],
+    mediaType: "movie",
+    yearFrom: 2000,
+    yearTo: 2009,
+    countries: ["US"]
+  });
+
+  const items = await buildRentalPool(filters, openRentalDatabase(":memory:"), {
+    fetchImpl,
+    token: "test-token"
+  });
+
+  assert.match(calls[0], /with_origin_country=US/);
+  assert.deepEqual(items.map((item) => item.title), ["American Comedy"]);
 });
 
 test("buildRentalPool is not capped at the first 20 discover pages", async () => {
@@ -532,6 +662,50 @@ test("tmdbDiscoverMaxPages can be lowered through environment config", () => {
   assert.equal(tmdbDiscoverMaxPages({ env: { TMDB_DISCOVER_MAX_PAGES: "50" } }), 50);
   assert.equal(tmdbDiscoverMaxPages({ env: { TMDB_DISCOVER_MAX_PAGES: "999" } }), 500);
   assert.equal(tmdbDiscoverMaxPages({ env: { TMDB_DISCOVER_MAX_PAGES: "0" } }), 1);
+});
+
+test("tmdbDiscoverPagePlan samples broad discover pools", () => {
+  const randomValues = [0.90, 0.10, 0.50, 0.30, 0.70];
+  const plan = tmdbDiscoverPagePlan(120, {
+    fullScanPages: 50,
+    samplePages: 5,
+    random: () => randomValues.shift()
+  });
+
+  assert.equal(plan.sampled, true);
+  assert.deepEqual(plan.pages, [13, 37, 61, 85, 109]);
+});
+
+test("buildRentalPool samples random pages when discover is too broad", async () => {
+  const calls = [];
+  const randomValues = [0.90, 0.10, 0.50, 0.30, 0.70];
+  const fetchImpl = async (url) => {
+    const page = Number(url.searchParams.get("page"));
+    calls.push(page);
+    return {
+      ok: true,
+      async json() {
+        return {
+          page,
+          total_pages: 120,
+          results: [
+            { id: page, title: `Page ${page}`, release_date: "2001-01-01", genre_ids: [28] }
+          ]
+        };
+      }
+    };
+  };
+
+  const items = await buildRentalPool(normalizeRentalSessionFilters({ mediaType: "movie" }), openRentalDatabase(":memory:"), {
+    fetchImpl,
+    token: "test-token",
+    fullScanPages: 50,
+    samplePages: 5,
+    random: () => randomValues.shift()
+  });
+
+  assert.deepEqual(calls, [1, 13, 37, 61, 85, 109]);
+  assert.deepEqual(items.map((item) => item.title), ["Page 13", "Page 37", "Page 61", "Page 85", "Page 109"]);
 });
 
 test("buildRentalPool uses the explicitly selected tv catalog", async () => {
@@ -664,6 +838,26 @@ test("selectRentalWinner chooses uniformly-addressable items from the saved full
     const persisted = readRentalSession(database, sessionId);
     assert.equal(persisted.selectionMode, "wheel");
     assert.equal(persisted.selectedItem.title, "Last Tape");
+  } finally {
+    database.close();
+  }
+});
+
+test("deleteRentalItem removes a cassette from the saved rental session and clears selected winner", () => {
+  const database = openRentalDatabase(":memory:");
+
+  try {
+    const sessionId = seedRentalSession(database, ["Tape A", "Tape B", "Tape C"]);
+    const selected = selectRentalWinner(database, sessionId, { random: () => 0.5 });
+    assert.equal(selected.selectedItem.title, "Tape B");
+
+    const updated = deleteRentalItem(database, sessionId, selected.selectedItem.id);
+
+    assert.equal(updated.totalCount, 2);
+    assert.equal(updated.selectedItem, null);
+    assert.equal(updated.selectedMediaId, null);
+    assert.deepEqual(updated.items.map((item) => item.title), ["Tape A", "Tape C"]);
+    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM rental_session_items WHERE session_id = ?").get(sessionId).count, 2);
   } finally {
     database.close();
   }

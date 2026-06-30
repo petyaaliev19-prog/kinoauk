@@ -6,6 +6,7 @@ const {
   assertRentalMediaType,
   fetchTmdbDiscoverPool,
   fetchTmdbGenres,
+  fetchTmdbMediaDetails,
   fetchTmdbPersonCredits,
   normalizeTmdbMedia,
   saveTmdbGenres,
@@ -17,9 +18,17 @@ const {
 const root = __dirname;
 const port = Number(process.env.PORT || 5173);
 const pidFile = path.join(root, "kinoauk-server.pid");
-const kinopoiskListUrls = [
-  "https://www.kinopoisk.ru/user/14758743/movies/planned-to-watch/",
-  "https://www.kinopoisk.ru/user/33826991/movies/planned-to-watch/"
+const kinopoiskListSources = [
+  {
+    owner: "maxim",
+    label: "Максим",
+    url: "https://www.kinopoisk.ru/user/14758743/movies/planned-to-watch/"
+  },
+  {
+    owner: "olya",
+    label: "Оля",
+    url: "https://www.kinopoisk.ru/user/33826991/movies/planned-to-watch/"
+  }
 ];
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -51,6 +60,12 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const rentalDetailsMatch = /^\/api\/rental\/details\/(movie|tv)\/(\d+)$/.exec(url.pathname);
+  if (rentalDetailsMatch && req.method === "GET") {
+    getRentalMediaDetails(res, rentalDetailsMatch[1], Number(rentalDetailsMatch[2]));
+    return;
+  }
+
   if (url.pathname === "/api/rental/sessions" && req.method === "POST") {
     createRentalSession(req, res);
     return;
@@ -65,6 +80,12 @@ const server = http.createServer((req, res) => {
   const rentalSelectMatch = /^\/api\/rental\/sessions\/(\d+)\/select$/.exec(url.pathname);
   if (rentalSelectMatch && req.method === "POST") {
     selectRentalSession(res, Number(rentalSelectMatch[1]));
+    return;
+  }
+
+  const rentalItemMatch = /^\/api\/rental\/sessions\/(\d+)\/items\/(\d+)$/.exec(url.pathname);
+  if (rentalItemMatch && req.method === "DELETE") {
+    deleteRentalSessionItem(res, Number(rentalItemMatch[1]), Number(rentalItemMatch[2]));
     return;
   }
 
@@ -205,6 +226,39 @@ function getRentalConfig(res, options = {}) {
   });
 }
 
+async function getRentalMediaDetails(res, mediaType, tmdbId, options = {}) {
+  try {
+    assertRentalMediaType(mediaType);
+  } catch (error) {
+    sendJson(res, 400, { error: error.code, message: "mediaType должен быть movie или tv." });
+    return;
+  }
+
+  if (!Number.isInteger(tmdbId) || tmdbId <= 0) {
+    sendJson(res, 400, { error: "INVALID_TMDB_ID", message: "TMDb id должен быть положительным числом." });
+    return;
+  }
+
+  const credential = tmdbCredential(options.env, options.envPath);
+  if (!credential) {
+    sendJson(res, 503, { error: "TMDB_TOKEN_MISSING", message: "TMDb credentials не настроены на локальном сервере." });
+    return;
+  }
+
+  try {
+    const details = await fetchTmdbMediaDetails(mediaType, tmdbId, {
+      fetchImpl: options.fetchImpl,
+      language: options.language,
+      watchRegion: options.watchRegion,
+      ...credential
+    });
+    sendJson(res, 200, { mediaType, tmdbId, details });
+  } catch (error) {
+    const status = error.status && error.status >= 400 && error.status < 500 ? 502 : 500;
+    sendJson(res, status, { error: error.code || "TMDB_MEDIA_DETAILS_FAILED", message: error.message });
+  }
+}
+
 async function createRentalSession(req, res, options = {}) {
   let filters;
   try {
@@ -224,14 +278,19 @@ async function createRentalSession(req, res, options = {}) {
   try {
     const openDatabase = options.openDatabase || openRentalDatabase;
     database = openDatabase();
+    const collectionStats = { discover: [] };
     const items = await buildRentalPool(filters, database, {
       fetchImpl: options.fetchImpl,
       language: options.language,
       ...credential,
-      maxPages: options.maxPages
+      maxPages: options.maxPages,
+      collectionStats
     });
     const sessionId = saveRentalSession(database, filters, items);
-    const session = readRentalSession(database, sessionId);
+    const session = {
+      ...readRentalSession(database, sessionId),
+      collectionStats
+    };
     sendJson(res, 200, session);
   } catch (error) {
     const status = error.status && error.status >= 400 && error.status < 500 ? 502 : error.code === "INVALID_RENTAL_FILTERS" ? 400 : 500;
@@ -292,6 +351,7 @@ function normalizeRentalSessionFilters(payload) {
     yearFrom: normalizeOptionalYear(raw.yearFrom),
     yearTo: normalizeOptionalYear(raw.yearTo),
     voteAverageFrom: normalizeOptionalNumber(raw.voteAverageFrom),
+    voteCountFrom: normalizeOptionalInteger(raw.voteCountFrom),
     countries: normalizeCountryList(raw.countries)
   };
 
@@ -326,6 +386,12 @@ function normalizeOptionalNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeOptionalInteger(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function normalizeCountryList(value) {
   if (!Array.isArray(value)) return [];
   return [...new Set(
@@ -346,7 +412,14 @@ async function buildRentalPool(filters, database, options = {}) {
   }
 
   if (database) savePoolPeople(database, filters);
-  return dedupeRentalItems(items).filter((item) => matchesRentalFilters(item, filters));
+  const dedupedItems = dedupeRentalItems(items);
+  const filteredItems = dedupedItems.filter((item) => matchesRentalFilters(item, filters));
+  if (options.collectionStats) {
+    options.collectionStats.rawItems = items.length;
+    options.collectionStats.dedupedItems = dedupedItems.length;
+    options.collectionStats.filteredItems = filteredItems.length;
+  }
+  return filteredItems;
 }
 
 async function buildRentalPoolFromCredits(mediaTypes, filters, options = {}) {
@@ -380,7 +453,10 @@ async function collectCreditsForPerson(personTmdbId, mode, mediaTypes, options =
 async function buildRentalPoolFromDiscover(mediaTypes, filters, options = {}) {
   const items = [];
   for (const mediaType of mediaTypes) {
-    const discovered = await fetchTmdbDiscoverPool(mediaType, filters, options);
+    const discovered = await fetchTmdbDiscoverPool(mediaType, filters, {
+      ...options,
+      stats: options.collectionStats
+    });
     items.push(...discovered);
   }
   return items;
@@ -422,7 +498,8 @@ function matchesRentalFilters(item, filters) {
   if (filters.yearFrom && (!item.year || item.year < filters.yearFrom)) return false;
   if (filters.yearTo && (!item.year || item.year > filters.yearTo)) return false;
   if (filters.voteAverageFrom !== null && (item.voteAverage === null || item.voteAverage < filters.voteAverageFrom)) return false;
-  if (filters.countries.length && !filters.countries.some((country) => item.originCountry.includes(country))) return false;
+  if (filters.voteCountFrom !== null && item.voteCount < filters.voteCountFrom) return false;
+  if (filters.countries.length && item.originCountry.length && !filters.countries.some((country) => item.originCountry.includes(country))) return false;
   return true;
 }
 
@@ -607,6 +684,48 @@ function selectRentalWinner(database, sessionId, options = {}) {
   };
 }
 
+function deleteRentalItem(database, sessionId, mediaId, options = {}) {
+  const session = readRentalSession(database, sessionId);
+  if (!session) return null;
+  const item = session.items.find((candidate) => candidate.id === mediaId);
+  if (!item) return false;
+
+  database.prepare("DELETE FROM rental_session_items WHERE session_id = ? AND media_id = ?").run(sessionId, mediaId);
+  const nextCount = Math.max(0, session.items.length - 1);
+  const nextSelectionMode = selectionModeForPool(nextCount, options.wheelLimit);
+  database.prepare(`
+    UPDATE rental_sessions
+    SET total_count = ?,
+        selection_mode = ?,
+        selected_media_id = CASE WHEN selected_media_id = ? THEN NULL ELSE selected_media_id END,
+        selected_at = CASE WHEN selected_media_id = ? THEN NULL ELSE selected_at END
+    WHERE id = ?
+  `).run(nextCount, nextSelectionMode, mediaId, mediaId, sessionId);
+
+  return readRentalSession(database, sessionId);
+}
+
+function deleteRentalSessionItem(res, sessionId, mediaId, options = {}) {
+  let database;
+  try {
+    const openDatabase = options.openDatabase || openRentalDatabase;
+    database = openDatabase();
+    const session = deleteRentalItem(database, sessionId, mediaId, options);
+    if (!session) {
+      sendJson(res, session === null ? 404 : 400, {
+        error: session === null ? "RENTAL_SESSION_NOT_FOUND" : "RENTAL_SESSION_ITEM_NOT_FOUND",
+        message: session === null ? "Сеанс проката не найден." : "Кассета уже удалена из этого проката."
+      });
+      return;
+    }
+    sendJson(res, 200, session);
+  } catch (error) {
+    sendJson(res, 500, { error: error.code || "RENTAL_SESSION_ITEM_DELETE_FAILED", message: error.message });
+  } finally {
+    if (database && !options.keepDatabaseOpen) database.close();
+  }
+}
+
 function selectionModeForPool(totalCount, wheelLimit = DEFAULT_RENTAL_WHEEL_LIMIT) {
   return totalCount <= wheelLimit ? "wheel" : "vhs_machine";
 }
@@ -633,32 +752,56 @@ function readJsonBody(req) {
   });
 }
 
-async function fetchKinopoiskMovies() {
+async function fetchKinopoiskMovies(options = {}) {
+  const sources = options.sources || kinopoiskListSources;
   const movies = new Map();
+  const sourceMovies = await Promise.all(sources.map((source) => fetchKinopoiskSourceMovies(source, options)));
 
-  for (const listUrl of kinopoiskListUrls) {
-    for (let page = 1; page <= 10; page += 1) {
-      const url = new URL(listUrl);
-      url.searchParams.set("page", String(page));
-      const html = await fetchKinopoiskHtml(url.href);
-      const pageMovies = parseKinopoiskHtml(html);
-      let added = 0;
-
-      for (const movie of pageMovies) {
-        if (movies.has(movie.url)) continue;
-        movies.set(movie.url, movie);
-        added += 1;
-      }
-
-      if (!pageMovies.length || !added) break;
+  for (const list of sourceMovies) {
+    for (const movie of list) {
+      mergeKinopoiskMovie(movies, movie);
     }
   }
 
   return [...movies.values()];
 }
 
-async function fetchKinopoiskHtml(url) {
+async function fetchKinopoiskSourceMovies(source, options = {}) {
+  const movies = [];
   const jar = new Map();
+  const fetchHtml = options.fetchHtml || fetchKinopoiskHtml;
+
+  for (let page = 1; page <= 10; page += 1) {
+    const url = new URL(source.url);
+    url.searchParams.set("page", String(page));
+    const html = await fetchHtml(url.href, { jar });
+    const pageMovies = parseKinopoiskHtml(html).map((movie) => ({
+      ...movie,
+      owners: [source.owner]
+    }));
+    movies.push(...pageMovies);
+
+    if (!pageMovies.length) break;
+  }
+
+  return movies;
+}
+
+function mergeKinopoiskMovie(movies, movie) {
+  const current = movies.get(movie.url);
+  const owners = [...new Set([...(current?.owners || []), ...(movie.owners || [])])];
+  movies.set(movie.url, {
+    title: current?.title || movie.title,
+    url: movie.url,
+    poster: current?.poster || movie.poster,
+    year: current?.year || movie.year || "",
+    genre: current?.genre || movie.genre || "",
+    owners
+  });
+}
+
+async function fetchKinopoiskHtml(url, options = {}) {
+  const jar = options.jar || new Map();
   let result = await requestKinopoisk(url, jar);
 
   const redirect = result.response.headers.get("location");
@@ -797,10 +940,13 @@ module.exports = {
   buildRentalPool,
   createRentalSession,
   DEFAULT_RENTAL_WHEEL_LIMIT,
+  deleteRentalItem,
+  deleteRentalSessionItem,
   fetchKinopoiskHtml,
   fetchKinopoiskMovies,
   getRentalConfig,
   getRentalGenres,
+  getRentalMediaDetails,
   getRentalSession,
   normalizeRentalSessionFilters,
   parseKinopoiskHtml,

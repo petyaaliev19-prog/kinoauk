@@ -40,6 +40,8 @@ const {
   mergeMovieList,
   movieAtPointerFromSegments,
   movieKey,
+  movieOwnerLabel,
+  movieOwners,
   movieMetaLabel,
   pickMovieByOdds,
   rotationToLandSegmentAtPointer,
@@ -56,6 +58,7 @@ const state = {
   mode: ["shelf", "rental"].includes(loadJson(MODE_KEY, "shelf")) ? loadJson(MODE_KEY, "shelf") : "shelf",
   rotation: 0,
   spinning: false,
+  importing: false,
   winner: null,
   rental: {
     genres: [],
@@ -120,6 +123,10 @@ const rentalPersonSuggestions = document.querySelector("#rentalPersonSuggestions
 const rentalYearFrom = document.querySelector("#rentalYearFrom");
 const rentalYearTo = document.querySelector("#rentalYearTo");
 const rentalRatingFrom = document.querySelector("#rentalRatingFrom");
+const rentalVotesFrom = document.querySelector("#rentalVotesFrom");
+const rentalYearPresetButtons = document.querySelectorAll("[data-year-preset]");
+const rentalRatingPresetButtons = document.querySelectorAll("[data-rating-preset]");
+const rentalVotesPresetButtons = document.querySelectorAll("[data-votes-preset]");
 const rentalCountrySelect = document.querySelector("#rentalCountrySelect");
 const rentalFilterSummary = document.querySelector("#rentalFilterSummary");
 const rentalRequestCard = document.querySelector("#rentalRequestCard");
@@ -147,6 +154,7 @@ const winnerModalLabel = document.querySelector("#winnerModalLabel");
 const winnerModalPoster = document.querySelector("#winnerModalPoster");
 const winnerModalMeta = document.querySelector("#winnerModalMeta");
 const winnerModalTitle = document.querySelector("#winnerModalTitle");
+const winnerModalDetails = document.querySelector("#winnerModalDetails");
 const watchWinnerButton = document.querySelector("#watchWinnerButton");
 const modalRemoveWinnerButton = document.querySelector("#modalRemoveWinnerButton");
 const closeWinnerModalButton = document.querySelector("#closeWinnerModalButton");
@@ -167,6 +175,7 @@ let horrorScream = null;
 let actionGunshots = null;
 let genreDraft = [...state.genreFilter];
 let genreTransition = null;
+let winnerDetailsRequestId = 0;
 let mascotSpeechTimer = null;
 let rentalPersonSearchTimer = null;
 
@@ -328,11 +337,13 @@ function rentalExtraFilters() {
   const yearFrom = rentalYearFrom?.value ? Number(rentalYearFrom.value) : null;
   const yearTo = rentalYearTo?.value ? Number(rentalYearTo.value) : null;
   const ratingFrom = rentalRatingFrom?.value ? Number(rentalRatingFrom.value) : null;
+  const votesFrom = rentalVotesFrom?.value ? Number(rentalVotesFrom.value) : null;
   const country = rentalCountrySelect?.value || "";
   return {
     yearFrom: Number.isInteger(yearFrom) ? yearFrom : null,
     yearTo: Number.isInteger(yearTo) ? yearTo : null,
     voteAverageFrom: Number.isFinite(ratingFrom) ? ratingFrom : null,
+    voteCountFrom: Number.isInteger(votesFrom) ? votesFrom : null,
     countries: country ? [country] : []
   };
 }
@@ -351,18 +362,52 @@ function rentalYearSummary() {
   return "";
 }
 
+function resetRentalSessionForFilterChange() {
+  state.rental.session = null;
+  state.rental.view = "form";
+  render();
+}
+
+function renderRentalPresetButtons() {
+  const yearValue = `${rentalYearFrom?.value || ""}:${rentalYearTo?.value || ""}`;
+  rentalYearPresetButtons.forEach((button) => {
+    const active = button.dataset.yearPreset === yearValue || (!button.dataset.yearPreset && yearValue === ":");
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.disabled = state.rental.loading;
+  });
+
+  const ratingValue = rentalRatingFrom?.value || "";
+  rentalRatingPresetButtons.forEach((button) => {
+    const active = button.dataset.ratingPreset === ratingValue;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.disabled = state.rental.loading;
+  });
+
+  const votesValue = rentalVotesFrom?.value || "";
+  rentalVotesPresetButtons.forEach((button) => {
+    const active = button.dataset.votesPreset === votesValue;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.disabled = state.rental.loading;
+  });
+}
+
 function rentalFilterSummaryText() {
   const parts = [rentalMediaType() === "tv" ? "Сериалы" : "Фильмы"];
   const genre = selectedOptionLabel(rentalGenreSelect);
   const person = state.rental.selectedPerson?.name || "";
   const year = rentalYearSummary();
   const rating = rentalRatingFrom?.value ? `${rentalRatingFrom.value}+` : "";
+  const votes = rentalVotesFrom?.value ? `${rentalVotesFrom.value}+ голосов` : "";
   const country = selectedOptionLabel(rentalCountrySelect);
 
   if (genre) parts.push(genre);
   if (person) parts.push(person);
   if (year) parts.push(year);
   if (rating) parts.push(rating);
+  if (votes) parts.push(votes);
   if (country) parts.push(country);
   if (parts.length === 1) parts.push("популярное");
   return parts.join(" · ");
@@ -377,6 +422,7 @@ function rentalItemToMovie(item) {
     genre: item.mediaType === "tv" ? "сериал" : "прокат",
     genres: item.genreIds || [],
     rental: true,
+    id: item.id,
     tmdbId: item.tmdbId,
     mediaType: item.mediaType
   };
@@ -393,6 +439,16 @@ function activeWheelOdds(movies = activeWheelMovies()) {
 function chanceLabel(chance) {
   const percent = chance * 100;
   return `${percent >= 10 ? percent.toFixed(0) : percent.toFixed(1).replace(".", ",")}%`;
+}
+
+function movieOwnerClass(movie) {
+  const owners = movieOwners(movie);
+  const hasMaxim = owners.includes("maxim");
+  const hasOlya = owners.includes("olya");
+  if (hasMaxim && hasOlya) return "movie-owner-shared";
+  if (hasMaxim) return "movie-owner-maxim";
+  if (hasOlya) return "movie-owner-olya";
+  return "";
 }
 
 function genreLabel(genre) {
@@ -643,7 +699,11 @@ function render() {
   resetWinnerButton.disabled = state.spinning;
   clearButton.disabled = state.spinning;
   searchInput.disabled = state.spinning;
-  refreshKinopoiskButton.disabled = state.spinning;
+  setButtonLoading(refreshKinopoiskButton, state.importing, {
+    idle: "Обновить с Кинопоиска",
+    loading: "Импортирую..."
+  });
+  refreshKinopoiskButton.disabled = state.spinning || state.importing;
   addForm.querySelectorAll("input, button").forEach((control) => {
     control.disabled = state.spinning;
   });
@@ -664,6 +724,13 @@ function render() {
   renderRental();
 }
 
+function setButtonLoading(button, loading, labels = {}) {
+  if (!button) return;
+  button.classList.toggle("is-loading", Boolean(loading));
+  button.setAttribute("aria-busy", String(Boolean(loading)));
+  button.textContent = loading ? labels.loading : labels.idle;
+}
+
 function setAppMode(mode) {
   if (state.spinning || !["shelf", "rental"].includes(mode)) return;
   state.mode = mode;
@@ -682,10 +749,14 @@ function renderRental() {
   });
   rentalGenreSelect.disabled = state.rental.genresLoading || state.rental.loading;
   rentalPersonInput.disabled = state.rental.loading;
-  [rentalYearFrom, rentalYearTo, rentalRatingFrom, rentalCountrySelect].forEach((control) => {
+  [rentalYearFrom, rentalYearTo, rentalRatingFrom, rentalVotesFrom, rentalCountrySelect].forEach((control) => {
     if (control) control.disabled = state.rental.loading;
   });
   rentalBuildPoolButton.disabled = !rentalReady || state.rental.loading || state.rental.genresLoading;
+  setButtonLoading(rentalBuildPoolButton, state.rental.loading, {
+    idle: "Собрать кассеты",
+    loading: "Собираю кассеты..."
+  });
   rentalClearButton.disabled = state.rental.loading
     || (!selectedGenre && !rentalPersonInput.value && !state.rental.selectedPerson && !state.rental.session);
 
@@ -693,6 +764,7 @@ function renderRental() {
   rentalStatusText.textContent = state.rental.status;
   renderRentalGenres();
   if (rentalFilterSummary) rentalFilterSummary.textContent = rentalFilterSummaryText();
+  renderRentalPresetButtons();
   renderRentalPeople();
   renderRentalSession();
 }
@@ -883,15 +955,53 @@ function renderRentalSession() {
       ? "Лента перематывает весь пул и ловит случайную кассету."
       : "Нажми выбор, и автомат достанет одну кассету из полного пула.");
 
+  if (!session.items.length) {
+    const item = document.createElement("li");
+    item.className = "rental-empty-row";
+    const title = document.createElement("strong");
+    title.textContent = "Все кассеты из этого пула убраны";
+    item.append(title);
+    rentalTapeList.append(item);
+    return;
+  }
+
   for (const movie of session.items) {
     const item = document.createElement("li");
+    item.className = "rental-tape-row";
     const index = document.createElement("span");
-    index.textContent = String(movie.tmdbRank || rentalTapeList.children.length + 1).padStart(3, "0");
+    index.className = "rental-tape-rank";
+    index.textContent = String(rentalTapeList.children.length + 1).padStart(3, "0");
+    const posterSlot = document.createElement("span");
+    posterSlot.className = "rental-tape-poster-slot";
+    const poster = document.createElement("img");
+    poster.className = "rental-tape-poster";
+    poster.src = rentalItemToMovie(movie).poster || FALLBACK_POSTER;
+    poster.alt = movie.title;
+    poster.loading = "lazy";
+    poster.onerror = () => {
+      poster.onerror = null;
+      poster.src = FALLBACK_POSTER;
+      posterSlot.classList.add("empty-poster");
+    };
+    posterSlot.classList.toggle("empty-poster", !movie.posterPath);
+    posterSlot.append(poster);
+    const copy = document.createElement("div");
+    copy.className = "rental-tape-copy";
     const title = document.createElement("strong");
     title.textContent = movie.title;
     const meta = document.createElement("small");
     meta.textContent = `${movie.mediaType === "tv" ? "сериал" : "фильм"}${movie.year ? ` · ${movie.year}` : ""}`;
-    item.append(index, title, meta);
+    meta.textContent = movie.year ? String(movie.year) : "";
+    copy.append(title, meta);
+    const remove = document.createElement("button");
+    remove.className = "rental-tape-remove";
+    remove.type = "button";
+    remove.title = "Удалить из проката";
+    remove.setAttribute("aria-label", `Удалить ${movie.title} из проката`);
+    remove.textContent = "×";
+    remove.disabled = state.spinning || state.rental.loading;
+    remove.addEventListener("click", () => removeRentalItem(movie));
+    item.append(index, posterSlot, copy, remove);
     rentalTapeList.append(item);
   }
 }
@@ -1024,8 +1134,15 @@ function renderList() {
     const chanceMeta = document.createElement("span");
     chanceMeta.className = "movie-chance";
     chanceMeta.textContent = chance ? `Шанс ${chanceLabel(chance.chance)}` : "Вне аукциона";
+    const ownerLabel = movieOwnerLabel(movie);
     link.append(title);
     if (meta.textContent) details.append(meta);
+    if (ownerLabel) {
+      const ownerBadge = document.createElement("span");
+      ownerBadge.className = `movie-owner-badge ${movieOwnerClass(movie)}`;
+      ownerBadge.textContent = ownerLabel;
+      details.append(ownerBadge);
+    }
     details.append(chanceMeta);
     link.append(details);
     link.href = movie.url || "#";
@@ -1279,6 +1396,8 @@ async function spinRentalMachine() {
   sayMascot("spin");
   render();
   playStartSound();
+
+  render();
 
   try {
     const payload = await fetchJson(apiEndpoint(`/api/rental/sessions/${sessionId}/select`), {
@@ -1609,6 +1728,7 @@ function playGenreFilterSound(effect) {
 function showWinnerPremiere(movie) {
   const effect = winnerEffectType(movie);
   renderWinnerModal(movie, effect);
+  loadWinnerDetails(movie);
   showGenreWinBurst(movie, effect);
   playGenreWinSound(movie, effect);
 }
@@ -1627,7 +1747,127 @@ function renderWinnerModal(movie, effect) {
     winnerModalPoster.onerror = null;
     winnerModalPoster.src = FALLBACK_POSTER;
   };
+  renderWinnerDetailsShell(movie);
   playLibraryEntrance(winnerModal.querySelector(".winner-modal-card"));
+}
+
+function renderWinnerDetailsShell(movie) {
+  winnerModalDetails.textContent = "";
+  winnerModalDetails.classList.toggle("is-loading", Boolean(movie?.rental));
+  if (!movie?.rental) return;
+
+  const loading = document.createElement("div");
+  loading.className = "winner-details-loading";
+  loading.textContent = "Загружаю паспорт кассеты из TMDb...";
+  winnerModalDetails.append(loading);
+}
+
+async function loadWinnerDetails(movie) {
+  winnerDetailsRequestId += 1;
+  const requestId = winnerDetailsRequestId;
+  if (!movie?.rental || !movie.tmdbId || !movie.mediaType) return;
+
+  try {
+    const payload = await fetchJson(apiEndpoint(`/api/rental/details/${movie.mediaType}/${movie.tmdbId}`));
+    if (requestId !== winnerDetailsRequestId || state.winner?.tmdbId !== movie.tmdbId) return;
+    renderWinnerDetails(payload.details);
+  } catch {
+    if (requestId !== winnerDetailsRequestId || state.winner?.tmdbId !== movie.tmdbId) return;
+    renderWinnerDetailsUnavailable();
+  }
+}
+
+function renderWinnerDetails(details) {
+  winnerModalDetails.textContent = "";
+  winnerModalDetails.classList.remove("is-loading");
+  if (!details) return;
+
+  const facts = [
+    details.year,
+    formatRuntime(details.runtimeMinutes),
+    listNames(details.originCountry),
+    listNames((details.genres || []).map((genre) => genre.name)),
+    formatTmdbRating(details.voteAverage, details.voteCount)
+  ].filter(Boolean);
+  if (facts.length) {
+    const factRow = document.createElement("div");
+    factRow.className = "winner-detail-facts";
+    for (const fact of facts) {
+      const chip = document.createElement("span");
+      chip.textContent = fact;
+      factRow.append(chip);
+    }
+    winnerModalDetails.append(factRow);
+  }
+
+  if (details.overview) {
+    const overview = document.createElement("p");
+    overview.className = "winner-detail-overview";
+    overview.textContent = details.overview;
+    winnerModalDetails.append(overview);
+  }
+
+  const rows = [
+    ["Режиссёр", listNames((details.directors || []).map((person) => person.name))],
+    ["В ролях", listNames((details.cast || []).map((person) => person.name))]
+  ].filter((row) => row[1]);
+
+  for (const [label, value] of rows) {
+    const row = document.createElement("div");
+    row.className = "winner-detail-row";
+    const labelElement = document.createElement("strong");
+    labelElement.textContent = label;
+    const valueElement = document.createElement("span");
+    valueElement.textContent = value;
+    row.append(labelElement, valueElement);
+    winnerModalDetails.append(row);
+  }
+}
+
+function renderWinnerDetailsUnavailable() {
+  winnerModalDetails.textContent = "";
+  winnerModalDetails.classList.remove("is-loading");
+  const note = document.createElement("div");
+  note.className = "winner-details-loading";
+  note.textContent = "Подробности TMDb сейчас не подтянулись, но кассета уже выбрана.";
+  winnerModalDetails.append(note);
+}
+
+function formatRuntime(minutes) {
+  const value = Number(minutes);
+  if (!Number.isFinite(value) || value <= 0) return "";
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  if (!hours) return `${rest} мин`;
+  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
+}
+
+function formatTmdbRating(value, count) {
+  const rating = Number(value);
+  if (!Number.isFinite(rating) || rating <= 0) return "";
+  const votes = Number(count);
+  return Number.isFinite(votes) && votes > 0
+    ? `TMDb ${rating.toFixed(1)} (${compactNumber(votes)})`
+    : `TMDb ${rating.toFixed(1)}`;
+}
+
+function compactNumber(value) {
+  return new Intl.NumberFormat("ru-RU", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
+function listNames(items, limit = 5) {
+  const values = (items || []).map((item) => String(item || "").trim()).filter(Boolean);
+  return values.slice(0, limit).join(", ");
+}
+
+function watchProviderSummary(providers) {
+  if (!providers) return "";
+  const flatrate = listNames((providers.flatrate || []).map((provider) => provider.name), 3);
+  if (flatrate) return flatrate;
+  const rent = listNames((providers.rent || []).map((provider) => provider.name), 3);
+  if (rent) return `аренда: ${rent}`;
+  const buy = listNames((providers.buy || []).map((provider) => provider.name), 3);
+  return buy ? `покупка: ${buy}` : "";
 }
 
 function playLibraryEntrance(element) {
@@ -1642,18 +1882,67 @@ function playLibraryEntrance(element) {
 }
 
 function closeWinnerModal() {
+  winnerDetailsRequestId += 1;
   winnerModal.hidden = true;
   winnerModal.className = "winner-modal";
   winnerModalEffects.textContent = "";
 }
 
-function removeWinnerFromModal() {
+function clearRentalWinnerSelection() {
+  if (!state.rental.session) return;
+  state.rental.session = {
+    ...state.rental.session,
+    selectedItem: null,
+    selectedMediaId: null,
+    selectedAt: null
+  };
+  state.rental.status = "Победитель проката убран. Пул кассет остался на месте.";
+}
+
+async function removeRentalItem(item) {
+  const sessionId = rentalSessionId(state.rental.session);
+  if (!sessionId || !item?.id || state.spinning || state.rental.loading) return;
+  state.rental.loading = true;
+  state.rental.status = "Удаляю кассету из проката.";
+  render();
+
+  try {
+    const payload = await fetchJson(apiEndpoint(`/api/rental/sessions/${sessionId}/items/${item.id}`), {
+      method: "DELETE"
+    });
+    const removedWinner = state.winner?.rental && (state.winner.id === item.id || state.winner.tmdbId === item.tmdbId);
+    state.rental.session = payload;
+    state.rental.view = payload.selectionMode === "wheel" && payload.totalCount > 1
+      ? "wheel"
+      : (payload.selectionMode === "vhs_machine" && payload.totalCount > 0 ? "vhs_machine" : "form");
+    if (removedWinner) {
+      state.winner = null;
+      state.settledWheel = null;
+      closeWinnerModal();
+    }
+    state.rental.status = payload.totalCount
+      ? `Удалено из проката. Осталось ${payload.totalCount} ${pluralizeCassettes(payload.totalCount)}.`
+      : "Все кассеты из этого прокатного пула убраны.";
+  } catch (error) {
+    state.rental.status = rentalErrorMessage(error);
+  } finally {
+    state.rental.loading = false;
+    render();
+  }
+}
+
+async function removeCurrentWinner() {
   if (!state.winner) return;
-  state.movies = state.movies.filter((movie) => movie !== state.winner);
+  if (state.mode === "rental") {
+    await removeRentalItem(state.rental.session?.selectedItem || state.winner);
+    return;
+  } else {
+    state.movies = state.movies.filter((movie) => movie !== state.winner);
+  }
   state.winner = null;
   state.settledWheel = null;
   closeWinnerModal();
-  save();
+  if (state.mode !== "rental") save();
   render();
 }
 
@@ -1801,10 +2090,19 @@ function playComedyWinSound() {
 
 addForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const title = document.querySelector("#movieTitle").value;
-  const url = document.querySelector("#movieUrl").value;
-  mergeMovies([{ title, url }]);
+  const titleInput = document.querySelector("#movieTitle");
+  const urlInput = document.querySelector("#movieUrl");
+  const title = titleInput.value.trim();
+  const url = urlInput.value.trim();
+
+  if (!title) {
+    titleInput.focus();
+    return;
+  }
+
+  mergeMovies([url ? { title, url } : title]);
   addForm.reset();
+  titleInput.focus();
 });
 
 searchInput.addEventListener("input", () => {
@@ -1836,13 +2134,7 @@ clearButton.addEventListener("click", () => {
 spinButton.addEventListener("click", spin);
 
 removeWinnerButton.addEventListener("click", () => {
-  if (!state.winner) return;
-  state.movies = state.movies.filter((movie) => movie !== state.winner);
-  state.winner = null;
-  state.settledWheel = null;
-  closeWinnerModal();
-  save();
-  render();
+  removeCurrentWinner();
 });
 
 resetWinnerButton.addEventListener("click", () => {
@@ -1855,7 +2147,7 @@ resetWinnerButton.addEventListener("click", () => {
 
 watchWinnerButton.addEventListener("click", closeWinnerModal);
 closeWinnerModalButton.addEventListener("click", closeWinnerModal);
-modalRemoveWinnerButton.addEventListener("click", removeWinnerFromModal);
+modalRemoveWinnerButton.addEventListener("click", removeCurrentWinner);
 
 winnerModal.addEventListener("click", (event) => {
   if (event.target === winnerModal) closeWinnerModal();
@@ -1896,7 +2188,8 @@ shutdownButton.addEventListener("click", async () => {
 });
 
 refreshKinopoiskButton.addEventListener("click", async () => {
-  refreshKinopoiskButton.disabled = true;
+  state.importing = true;
+  render();
   refreshKinopoiskStatus.textContent = "Тяну список...";
 
   try {
@@ -1910,7 +2203,8 @@ refreshKinopoiskButton.addEventListener("click", async () => {
       ? "Локальный сервер не отвечает. Запусти start-kinoauk.cmd и открой http://127.0.0.1:5173"
       : error.message;
   } finally {
-    refreshKinopoiskButton.disabled = false;
+    state.importing = false;
+    render();
   }
 });
 
@@ -1960,13 +2254,30 @@ rentalForm.addEventListener("submit", (event) => {
   buildRentalSession();
 });
 
-[rentalYearFrom, rentalYearTo, rentalRatingFrom, rentalCountrySelect].forEach((control) => {
-  control?.addEventListener("input", () => {
-    state.rental.session = null;
-    state.rental.view = "form";
-    render();
+rentalYearPresetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const [from = "", to = ""] = button.dataset.yearPreset.split(":");
+    if (rentalYearFrom) rentalYearFrom.value = from;
+    if (rentalYearTo) rentalYearTo.value = to;
+    resetRentalSessionForFilterChange();
   });
 });
+
+rentalRatingPresetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (rentalRatingFrom) rentalRatingFrom.value = button.dataset.ratingPreset || "";
+    resetRentalSessionForFilterChange();
+  });
+});
+
+rentalVotesPresetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (rentalVotesFrom) rentalVotesFrom.value = button.dataset.votesPreset || "";
+    resetRentalSessionForFilterChange();
+  });
+});
+
+rentalCountrySelect?.addEventListener("input", resetRentalSessionForFilterChange);
 
 [rentalGenreSelect, rentalPersonInput, rentalCountrySelect].forEach((control) => {
   control?.addEventListener("change", () => {
@@ -2114,8 +2425,9 @@ async function buildRentalSession() {
     state.rental.view = payload.selectionMode === "wheel" && payload.totalCount > 1
       ? "wheel"
       : (payload.selectionMode === "vhs_machine" && payload.totalCount > 0 ? "vhs_machine" : "form");
+    const statsSummary = rentalCollectionStatsSummary(payload.collectionStats);
     state.rental.status = payload.totalCount
-      ? `Собрано ${payload.totalCount} ${pluralizeCassettes(payload.totalCount)}.`
+      ? `Собрано ${payload.totalCount} ${pluralizeCassettes(payload.totalCount)}.${statsSummary ? ` ${statsSummary}` : ""}`
       : "По этому запросу кассет не нашли.";
   } catch (error) {
     state.rental.status = rentalErrorMessage(error);
@@ -2136,6 +2448,7 @@ function clearRentalForm() {
   if (rentalYearFrom) rentalYearFrom.value = "";
   if (rentalYearTo) rentalYearTo.value = "";
   if (rentalRatingFrom) rentalRatingFrom.value = "";
+  if (rentalVotesFrom) rentalVotesFrom.value = "";
   if (rentalCountrySelect) rentalCountrySelect.value = "";
   state.rental.people = [];
   state.rental.selectedPerson = null;
@@ -2155,6 +2468,23 @@ async function fetchJson(url, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function rentalCollectionStatsSummary(stats) {
+  const discover = stats?.discover?.[0];
+  if (!discover) return "";
+  const raw = Number(stats.rawItems ?? discover.normalizedResults ?? 0);
+  const deduped = Number(stats.dedupedItems ?? raw);
+  const filtered = Number(stats.filteredItems ?? deduped);
+  const pageText = `${discover.fetchedPages}/${discover.requestedPages}`;
+  const pageLimitText = discover.availablePages > discover.requestedPages
+    ? ` из ${discover.availablePages}`
+    : "";
+  const modeText = discover.sampled ? "случайный срез" : "полный скан";
+  const countText = deduped === filtered
+    ? `${raw} строк -> ${filtered} после дедупа`
+    : `${raw} строк -> ${deduped} после дедупа -> ${filtered} после фильтров`;
+  return `TMDb: ${modeText}, ${pageText} стр.${pageLimitText}, ${countText}.`;
 }
 
 function rentalErrorMessage(error) {

@@ -22,9 +22,16 @@ test("runtime files needed by shortcuts exist", () => {
 
 test("winner premiere modal markup is present", () => {
   const html = fs.readFileSync("index.html", "utf8");
-  for (const id of ["winnerModal", "winnerModalEffects", "watchWinnerButton", "modalRemoveWinnerButton", "closeWinnerModalButton"]) {
+  const app = fs.readFileSync("app.js", "utf8");
+  const css = fs.readFileSync("styles.css", "utf8");
+
+  for (const id of ["winnerModal", "winnerModalEffects", "winnerModalDetails", "watchWinnerButton", "modalRemoveWinnerButton", "closeWinnerModalButton"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+  assert.doesNotMatch(app, /Где смотреть/);
+  assert.doesNotMatch(css, /\.winner-detail-overview\s*\{[\s\S]*?-webkit-line-clamp:\s*3/);
+  assert.match(css, /\.winner-modal-actions\s*\{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: max-content max-content;/);
+  assert.match(css, /\.winner-modal-actions \.primary\s*\{[\s\S]*?grid-column: 1 \/ -1;/);
 });
 
 test("genre auction markup and runtime hooks are present", () => {
@@ -80,10 +87,14 @@ test("movie list exposes exact stake controls and the spin uses weighted odds", 
   assert.match(app, /pickMovieByOdds/);
   assert.match(app, /wheelSegments/);
   assert.match(app, /groupMoviesByAuctionEligibility/);
+  assert.match(app, /movieOwnerLabel/);
+  assert.match(app, /movieOwnerClass/);
   assert.match(app, /animateStakeRemontage/);
   assert.match(app, /playSoftRemontage/);
   assert.match(app, /state\.stakes = \{ max: "", olya: "" \}/);
   assert.match(css, /\.movie-chance/);
+  assert.match(css, /\.movie-owner-badge/);
+  assert.match(css, /\.movie-owner-shared/);
   assert.match(css, /\.stake-button/);
   assert.match(css, /\.auction-divider/);
 });
@@ -115,7 +126,7 @@ test("TV and VHS atmosphere modes include their controls and local backgrounds",
   assert.match(css, /assets\/backdrop\/vhs-night-lounge\.png/);
   assert.match(css, /assets\/backdrop\/tv-day-lounge\.png/);
   assert.match(css, /window owns the left side of the room/);
-  assert.match(css, /width: min\(1100px, calc\(100vw - 36px\)\)/);
+  assert.match(css, /width: min\(1180px, calc\(100vw - 36px\)\)/);
   assert.match(html, /id="mascotSpeech"/);
   assert.doesNotMatch(html, /class="mascot-stand"/);
   assert.doesNotMatch(html, /class="family-mascot"/);
@@ -156,11 +167,17 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   const app = fs.readFileSync("app.js", "utf8");
   const css = fs.readFileSync("styles.css", "utf8");
 
-  for (const id of ["rentalForm", "rentalMediaMovie", "rentalMediaTv", "rentalGenreSelect", "rentalPersonInput", "rentalYearFrom", "rentalYearTo", "rentalRatingFrom", "rentalCountrySelect", "rentalFilterSummary", "rentalRequestCard", "rentalRequestCount", "rentalRequestSummary", "rentalBuildPoolButton", "rentalClearButton", "rentalBackToFormButton", "rentalTapeList"]) {
+  for (const id of ["rentalForm", "rentalMediaMovie", "rentalMediaTv", "rentalGenreSelect", "rentalPersonInput", "rentalYearFrom", "rentalYearTo", "rentalRatingFrom", "rentalVotesFrom", "rentalCountrySelect", "rentalFilterSummary", "rentalRequestCard", "rentalRequestCount", "rentalRequestSummary", "rentalBuildPoolButton", "rentalClearButton", "rentalBackToFormButton", "rentalTapeList"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /Собрать вечер/);
   assert.match(html, /Актёр \/ актриса/);
+  assert.match(html, /data-year-preset="1990:1999"/);
+  assert.match(html, /data-rating-preset="7"/);
+  assert.match(html, /data-rating-preset="7\.5"/);
+  assert.doesNotMatch(html, /data-rating-preset="8"/);
+  assert.match(html, /data-votes-preset="200"/);
+  assert.match(html, /Известность/);
   assert.match(html, /Собрать кассеты/);
   assert.match(html, /Кассеты ещё не собраны/);
   assert.match(html, /Колесо или VHS-автомат/);
@@ -171,6 +188,10 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   assert.match(app, /ensureRentalGenres/);
   assert.match(app, /searchRentalPeople/);
   assert.match(app, /buildRentalSession/);
+  assert.match(app, /importing: false/);
+  assert.match(app, /function setButtonLoading\(button, loading/);
+  assert.match(app, /setButtonLoading\(refreshKinopoiskButton, state\.importing/);
+  assert.match(app, /setButtonLoading\(rentalBuildPoolButton, state\.rental\.loading/);
   assert.match(app, /rentalWheelItems/);
   assert.match(app, /view: "form"/);
   assert.match(app, /state\.rental\.view = payload\.selectionMode === "wheel"/);
@@ -190,7 +211,15 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   assert.doesNotMatch(app, /rentalGenreSelect\.disabled = !rentalReady/);
   assert.match(app, /function rentalMediaType\(\)/);
   assert.match(app, /function rentalFilterSummaryText\(\)/);
+  assert.match(app, /function renderRentalPresetButtons\(\)/);
   assert.match(app, /function renderRentalRequestCard\(session\)/);
+  assert.match(app, /function clearRentalWinnerSelection\(\)/);
+  assert.match(app, /function removeRentalItem\(item\)/);
+  assert.match(app, /\/api\/rental\/sessions\/\$\{sessionId\}\/items\/\$\{item\.id\}/);
+  assert.match(app, /rental-tape-poster/);
+  assert.match(app, /rental-tape-remove/);
+  assert.match(app, /meta\.textContent = movie\.year \? String\(movie\.year\) : ""/);
+  assert.match(app, /if \(state\.mode === "rental"\) \{\s*await removeRentalItem/);
   assert.match(app, /function tmdbProfileUrl\(path, size = "w92"\)/);
   assert.match(app, /person\.profilePath/);
   assert.match(app, /\/api\/rental\/genres\?mediaType=\$\{mediaType\}/);
@@ -198,12 +227,16 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   assert.match(app, /genreTmdbIds: genreTmdbId \? \[genreTmdbId\] : \[\]/);
   assert.match(app, /mediaType: rentalMediaType\(\)/);
   assert.match(app, /\.\.\.rentalExtraFilters\(\)/);
+  assert.match(app, /voteCountFrom/);
   assert.match(app, /\/api\/rental\/people\?q=/);
   assert.match(app, /\/api\/rental\/sessions/);
   assert.match(css, /\.rental-form/);
+  assert.match(css, /button\.is-loading::before/);
+  assert.match(css, /@keyframes buttonLoaderSpin/);
   assert.match(css, /\.rental-console/);
   assert.match(css, /\.rental-filter-grid/);
-  assert.match(css, /\.rental-range-inputs/);
+  assert.match(css, /\.rental-preset-row/);
+  assert.match(css, /\.rental-preset-row-tight/);
   assert.match(css, /\.rental-filter-summary/);
   assert.match(css, /\.rental-request-card/);
   assert.match(css, /\.rental-media-toggle/);
@@ -218,6 +251,11 @@ test("rental evening form is wired to TMDb search without hard-coded person plac
   assert.match(css, /\.rental-machine-window/);
   assert.match(css, /@keyframes rentalRollShuffle/);
   assert.match(css, /@keyframes rentalMachineJolt/);
+  assert.match(css, /\.rental-machine-stage\.is-braking \.rental-machine-roll/);
+  assert.doesNotMatch(css, /\.rental-machine-stage\.is-braking \.rental-machine-window\s*\{[^}]*rentalMachineJolt/);
+  assert.doesNotMatch(css, /body\[data-mode="rental"\] #removeWinnerButton \{ display: none; \}/);
+  assert.doesNotMatch(css, /body\[data-mode="rental"\] \.controls,\s*body\[data-mode="rental"\] \.winner \{ display: none; \}/);
+  assert.match(css, /\.rental-tape-remove \{[\s\S]*border-radius: 999px/);
   assert.match(css, /@keyframes rentalTapeLock/);
 });
 

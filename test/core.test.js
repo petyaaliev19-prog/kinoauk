@@ -13,6 +13,8 @@ const {
   movieAtPointerFromRotation,
   movieAtPointerFromSegments,
   movieGenres,
+  movieOwnerLabel,
+  movieOwners,
   movieMetaLabel,
   movieKey,
   normalizeMovie,
@@ -48,6 +50,16 @@ test("normalizeMovie keeps Kinopoisk metadata", () => {
   });
 });
 
+test("normalizeMovie keeps movie ownership markers", () => {
+  assert.deepEqual(movieOwners(normalizeMovie({
+    title: "Shared Movie",
+    owners: ["maxim", "olya", "unknown", "maxim"]
+  })), ["maxim", "olya"]);
+  assert.equal(movieOwnerLabel({ owners: ["maxim"] }), "Фильм Максима");
+  assert.equal(movieOwnerLabel({ owners: ["olya"] }), "Фильм Оли");
+  assert.equal(movieOwnerLabel({ owners: ["maxim", "olya"] }), "Фильм общий");
+});
+
 test("mergeMovieList deduplicates by URL and fills new metadata", () => {
   const merged = mergeMovieList(
     [{ title: "Пила", url: "https://kp/film/1/", poster: "old.jpg" }],
@@ -59,6 +71,16 @@ test("mergeMovieList deduplicates by URL and fills new metadata", () => {
   assert.equal(merged[0].poster, "old.jpg");
   assert.equal(merged[0].year, "2004");
   assert.equal(merged[0].genre, "ужасы");
+});
+
+test("mergeMovieList merges ownership for duplicate movies", () => {
+  const merged = mergeMovieList(
+    [{ title: "Shared Movie", url: "https://kp/film/1/", owners: ["maxim"] }],
+    [{ title: "Shared Movie", url: "https://kp/film/1/", owners: ["olya"] }]
+  );
+
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0].owners, ["maxim", "olya"]);
 });
 
 test("movieAtPointerFromRotation matches wheel pointer math", () => {

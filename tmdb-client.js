@@ -7,8 +7,12 @@ const DEFAULT_PERSON_LIMIT = 8;
 const RENTAL_MEDIA_TYPES = new Set(["movie", "tv"]);
 const MAX_DISCOVER_PAGES = 500;
 const DEFAULT_DISCOVER_CONCURRENCY = 10;
+const DEFAULT_DISCOVER_FULL_SCAN_PAGES = 50;
+const DEFAULT_DISCOVER_SAMPLE_PAGES = 20;
 const TMDB_DISCOVER_MAX_PAGE = 500;
 const TMDB_DISCOVER_MAX_PAGES_ENV = "TMDB_DISCOVER_MAX_PAGES";
+const TMDB_DISCOVER_FULL_SCAN_PAGES_ENV = "TMDB_DISCOVER_FULL_SCAN_PAGES";
+const TMDB_DISCOVER_SAMPLE_PAGES_ENV = "TMDB_DISCOVER_SAMPLE_PAGES";
 const TMDB_TOKEN_NAMES = ["TMDB_API_TOKEN", "TMDB_READ_ACCESS_TOKEN", "TMDB_BEARER_TOKEN", "TMDB_TOKEN"];
 const TMDB_API_KEY_NAME = "TMDB_API_KEY";
 
@@ -130,19 +134,47 @@ async function fetchTmdbPersonCredits(personTmdbId, mediaType, options = {}) {
   };
 }
 
+async function fetchTmdbMediaDetails(mediaType, tmdbId, options = {}) {
+  assertRentalMediaType(mediaType);
+  const payload = await tmdbGet(`/${mediaType}/${Number(tmdbId)}`, {
+    append_to_response: "credits,watch/providers",
+    language: options.language || DEFAULT_LANGUAGE
+  }, options);
+
+  return normalizeTmdbMediaDetails(payload, mediaType, options.watchRegion || "RU");
+}
+
 async function fetchTmdbDiscoverPool(mediaType, filters = {}, options = {}) {
   assertRentalMediaType(mediaType);
   const baseParams = buildDiscoverParams(mediaType, filters, options.language || DEFAULT_LANGUAGE);
   const maxPages = tmdbDiscoverMaxPages(options);
   const firstPayload = await tmdbGet(`/discover/${mediaType}`, { ...baseParams, page: 1 }, options);
   const totalPages = Math.min(Number(firstPayload.total_pages || 1), maxPages);
-  const pages = [{
-    page: 1,
-    items: normalizeTmdbMediaList(firstPayload.results || [], mediaType)
-  }];
+  const pagePlan = tmdbDiscoverPagePlan(totalPages, options);
+  const pageStats = options.stats ? {
+    mediaType,
+    availablePages: Number(firstPayload.total_pages || 1),
+    requestedPages: pagePlan.pages.length,
+    maxPages,
+    fullScanPages: pagePlan.fullScanPages,
+    samplePages: pagePlan.samplePages,
+    sampled: pagePlan.sampled,
+    fetchedPages: 0,
+    rawResults: 0,
+    normalizedResults: 0
+  } : null;
+  const pages = [];
+  if (pagePlan.pages.includes(1)) {
+    const items = normalizeTmdbMediaList(firstPayload.results || [], mediaType);
+    pages.push({ page: 1, items });
+    if (pageStats) {
+      pageStats.fetchedPages += 1;
+      pageStats.rawResults += Array.isArray(firstPayload.results) ? firstPayload.results.length : 0;
+      pageStats.normalizedResults += items.length;
+    }
+  }
 
-  const remainingPages = [];
-  for (let page = 2; page <= totalPages; page += 1) remainingPages.push(page);
+  const remainingPages = pagePlan.pages.filter((page) => page !== 1);
 
   const concurrency = Math.max(1, Number(options.concurrency || DEFAULT_DISCOVER_CONCURRENCY));
   for (let index = 0; index < remainingPages.length; index += concurrency) {
@@ -154,11 +186,22 @@ async function fetchTmdbDiscoverPool(mediaType, filters = {}, options = {}) {
       }))
     );
     for (const { page, payload } of payloads) {
+      const items = normalizeTmdbMediaList(payload.results || [], mediaType);
       pages.push({
         page,
-        items: normalizeTmdbMediaList(payload.results || [], mediaType)
+        items
       });
+      if (pageStats) {
+        pageStats.fetchedPages += 1;
+        pageStats.rawResults += Array.isArray(payload.results) ? payload.results.length : 0;
+        pageStats.normalizedResults += items.length;
+      }
     }
+  }
+
+  if (pageStats) {
+    options.stats.discover ||= [];
+    options.stats.discover.push(pageStats);
   }
 
   return pages
@@ -174,6 +217,58 @@ function tmdbDiscoverMaxPages(options = {}) {
   const parsed = Number(configured);
   if (!Number.isFinite(parsed)) return MAX_DISCOVER_PAGES;
   return Math.max(1, Math.min(TMDB_DISCOVER_MAX_PAGE, Math.floor(parsed)));
+}
+
+function tmdbDiscoverPagePlan(totalPages, options = {}) {
+  const pageCount = Math.max(1, Math.floor(Number(totalPages) || 1));
+  const fullScanPages = readPositiveIntegerOption(
+    options,
+    "fullScanPages",
+    TMDB_DISCOVER_FULL_SCAN_PAGES_ENV,
+    DEFAULT_DISCOVER_FULL_SCAN_PAGES,
+    TMDB_DISCOVER_MAX_PAGE
+  );
+  const samplePages = readPositiveIntegerOption(
+    options,
+    "samplePages",
+    TMDB_DISCOVER_SAMPLE_PAGES_ENV,
+    DEFAULT_DISCOVER_SAMPLE_PAGES,
+    TMDB_DISCOVER_MAX_PAGE
+  );
+  if (pageCount <= fullScanPages) {
+    return {
+      pages: Array.from({ length: pageCount }, (_item, index) => index + 1),
+      fullScanPages,
+      samplePages,
+      sampled: false
+    };
+  }
+
+  return {
+    pages: sampleUniquePages(pageCount, Math.min(samplePages, pageCount), options.random),
+    fullScanPages,
+    samplePages,
+    sampled: true
+  };
+}
+
+function readPositiveIntegerOption(options, optionName, envName, fallback, max) {
+  const configured = options[optionName]
+    ?? options.env?.[envName]
+    ?? readDotEnv(options.envPath)[envName]
+    ?? fallback;
+  const parsed = Number(configured);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(max, Math.floor(parsed)));
+}
+
+function sampleUniquePages(totalPages, count, random = Math.random) {
+  const pages = new Set();
+  const nextRandom = typeof random === "function" ? random : Math.random;
+  while (pages.size < count) {
+    pages.add(Math.min(totalPages, Math.floor(nextRandom() * totalPages) + 1));
+  }
+  return [...pages].sort((left, right) => left - right);
 }
 
 function assertRentalMediaType(mediaType) {
@@ -229,6 +324,72 @@ function normalizeTmdbMediaList(items, mediaType) {
     .map((item) => normalizeTmdbMedia(item, mediaType));
 }
 
+function normalizeTmdbMediaDetails(item, mediaType, watchRegion = "RU") {
+  assertRentalMediaType(mediaType);
+  const media = normalizeTmdbMedia(item, mediaType);
+  const credits = item.credits || {};
+  const crew = Array.isArray(credits.crew) ? credits.crew : [];
+  const cast = Array.isArray(credits.cast) ? credits.cast : [];
+  const providerResults = item["watch/providers"]?.results || {};
+  const regionProviders = providerResults[watchRegion] || {};
+
+  return {
+    ...media,
+    tagline: String(item.tagline || "").trim(),
+    runtimeMinutes: mediaType === "movie"
+      ? (Number.isFinite(Number(item.runtime)) ? Number(item.runtime) : null)
+      : (Array.isArray(item.episode_run_time) && Number.isFinite(Number(item.episode_run_time[0])) ? Number(item.episode_run_time[0]) : null),
+    genres: Array.isArray(item.genres)
+      ? item.genres
+        .filter((genre) => genre && genre.id && genre.name)
+        .map((genre) => ({ tmdbId: Number(genre.id), name: String(genre.name).trim() }))
+      : [],
+    genreIds: Array.isArray(item.genres)
+      ? item.genres.map((genre) => Number(genre?.id)).filter(Number.isFinite)
+      : media.genreIds,
+    originCountry: normalizeOriginCountry(item),
+    directors: crew
+      .filter((person) => person?.job === "Director" || person?.department === "Directing")
+      .map(normalizeCreditPerson)
+      .filter(Boolean)
+      .slice(0, 3),
+    cast: cast
+      .map(normalizeCreditPerson)
+      .filter(Boolean)
+      .slice(0, 5),
+    watchProviders: normalizeWatchProviders(regionProviders, watchRegion)
+  };
+}
+
+function normalizeCreditPerson(person) {
+  if (!person?.id || !person.name) return null;
+  return {
+    tmdbId: Number(person.id),
+    name: String(person.name || "").trim(),
+    character: String(person.character || "").trim(),
+    job: String(person.job || "").trim()
+  };
+}
+
+function normalizeWatchProviders(regionProviders, region) {
+  const normalizeProviderList = (items = []) => items
+    .filter((provider) => provider && provider.provider_id && provider.provider_name)
+    .map((provider) => ({
+      tmdbId: Number(provider.provider_id),
+      name: String(provider.provider_name || "").trim(),
+      logoPath: provider.logo_path || ""
+    }))
+    .slice(0, 5);
+
+  return {
+    region,
+    link: regionProviders.link || "",
+    flatrate: normalizeProviderList(regionProviders.flatrate),
+    rent: normalizeProviderList(regionProviders.rent),
+    buy: normalizeProviderList(regionProviders.buy)
+  };
+}
+
 function normalizeTmdbMedia(item, mediaType) {
   assertRentalMediaType(mediaType);
   return {
@@ -282,6 +443,9 @@ function buildDiscoverParams(mediaType, filters, language) {
   }
   if (filters.voteAverageFrom !== null && filters.voteAverageFrom !== undefined) {
     params["vote_average.gte"] = filters.voteAverageFrom;
+  }
+  if (filters.voteCountFrom !== null && filters.voteCountFrom !== undefined) {
+    params["vote_count.gte"] = filters.voteCountFrom;
   }
   if (Array.isArray(filters.countries) && filters.countries.length) {
     params.with_origin_country = filters.countries.join("|");
@@ -344,13 +508,17 @@ function saveTmdbGenres(database, genres) {
 module.exports = {
   DEFAULT_PERSON_LIMIT,
   DEFAULT_DISCOVER_CONCURRENCY,
+  DEFAULT_DISCOVER_FULL_SCAN_PAGES,
+  DEFAULT_DISCOVER_SAMPLE_PAGES,
   MAX_DISCOVER_PAGES,
   RENTAL_MEDIA_TYPES,
   assertRentalMediaType,
   fetchTmdbDiscoverPool,
   fetchTmdbGenres,
+  fetchTmdbMediaDetails,
   fetchTmdbPersonCredits,
   normalizeTmdbMedia,
+  normalizeTmdbMediaDetails,
   normalizeTmdbMediaList,
   readDotEnv,
   normalizeKnownFor,
@@ -363,5 +531,6 @@ module.exports = {
   tmdbGet,
   tmdbCredential,
   tmdbDiscoverMaxPages,
+  tmdbDiscoverPagePlan,
   tmdbToken
 };
